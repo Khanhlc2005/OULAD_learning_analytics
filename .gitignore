@@ -208,6 +208,40 @@ tempCodeRunnerFile.py
 # Ruff stuff:
 .ruff_cache/
 
+# Local OULAD source data and generated datasets
+/data/raw/
+/data/processed/
+
+# Personal data collected through Google Forms
+**/google_form/
+**/google_forms/
+**/*google*form*responses*.csv
+
+# Local Spark, notebook, and tool caches
+spark-warehouse/
+metastore_db/
+derby.log
+.conda/
+conda-meta/
+
+# Generated model artifacts and large serialized outputs
+/results/models/
+*.pkl
+*.pickle
+*.joblib
+*.onnx
+*.pt
+*.pth
+*.ckpt
+*.model
+*.parquet
+*.orc
+*.feather
+*.h5
+*.hdf5
+*.db
+*.sqlite
+
 # PyPI configuration file
 .pypirc
 
