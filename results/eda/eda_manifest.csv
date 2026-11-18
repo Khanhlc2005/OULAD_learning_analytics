@@ -1,0 +1,9 @@
+﻿chart_id,title,source,n,window,label_used,png,csv
+w2_01,Phân bố final_result,studentInfo,32593,toàn bộ (không áp dụng),"có (mô tả, toàn bộ)",w2_01_final_result.png,w2_01_final_result.csv
+w2_02,Rút lui tích lũy theo ngày,studentRegistration,32593,toàn bộ (mốc cắt ngày 28),không,w2_02_withdrawn_cumulative.png,w2_02_withdrawn_cumulative.csv
+w2_02b,Đỉnh rút lui theo ngày và module/đợt đóng góp,studentRegistration,5118,"toàn bộ, ngày -30 đến 60",không,w2_02b_withdrawn_spikes.png,w2_02b_withdrawn_spikes.csv
+w2_03,Cỡ lượt đăng ký và cohort theo module/đợt,studentRegistration,32593,toàn bộ (mốc cắt ngày 28),không,w2_03_cohort_size_by_module.png,w2_03_cohort_size_by_module.csv
+w2_04,Giá trị thiếu theo cột,"studentInfo, studentRegistration",32593,toàn bộ (không áp dụng),không,w2_04_missing_by_column.png,w2_04_missing_by_column.csv
+w2_05,Phân bố nhân khẩu học,studentInfo,32593,toàn bộ (không áp dụng),không,w2_05_demographics.png,w2_05_demographics.csv
+w2_06,Phân bố date_registration,studentRegistration,32548,toàn bộ (bỏ ô thiếu),không,w2_06_date_registration.png,w2_06_date_registration.csv
+w2_07,Tổng click VLE theo ngày,studentVle,10655280,toàn bộ ngày (cửa sổ 0–27 được tô nền),không,w2_07_vle_clicks_by_day.png,w2_07_vle_clicks_by_day.csv
