@@ -11,6 +11,7 @@ Quy tắc: Fit CHỈ trên tập Train, sau đó transform cho Dev và Test.
 import os
 import logging
 import joblib
+import yaml
 import numpy as np
 import pandas as pd
 from sklearn.base import BaseEstimator, TransformerMixin
@@ -18,39 +19,65 @@ from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder, StandardScaler,
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 
+from config.config import COLUMNS_YAML, PREPROCESSOR_PATH, MISSING_TOKEN
+
 logger = logging.getLogger(__name__)
 
+
 # -----------------------------------------------------------------------------
-# 1. KHAI BÁO CÁC NHÓM CỘT ĐẶC TRƯNG CHUẨN
+# 1. ĐỌC DANH SÁCH CỘT VÀ THỨ TỰ TỪ CONFIG/COLUMNS.YAML
 # -----------------------------------------------------------------------------
-ORDINAL_COLS = ['highest_education', 'imd_band', 'age_band']
-EDUCATION_ORDER = [
-    'No Formal quals', 'Lower Than A Level', 'A Level or Equivalent',
-    'HE Qualification', 'Post Graduate Qualification'
-]
-IMD_ORDER = [
-    '0-10%', '10-20', '20-30%', '30-40%', '40-50%',
-    '50-60%', '60-70%', '70-80%', '80-90%', '90-100%'
-]
-AGE_ORDER = ['0-35', '35-55', '55<=']
+def load_column_specs(yaml_path=COLUMNS_YAML) -> dict:
+    """Đọc đặc tả cột từ config/columns.yaml và phân nhóm tự động theo dtype/role."""
+    with open(yaml_path, 'r', encoding='utf-8') as f:
+        spec = yaml.safe_load(f)
 
-NOMINAL_COLS = ['code_module', 'gender', 'region', 'disability']
+    cols_meta = spec['columns']
+    orders = spec['ordinal_orders']
 
-NUMERIC_STATIC_COLS = ['num_of_prev_attempts', 'studied_credits', 'date_registration']
+    # Chỉ lấy các cột có role là 'feature' hoặc 'context'
+    active_cols = {
+        col: meta for col, meta in cols_meta.items()
+        if meta.get('role') in ('feature', 'context')
+    }
 
-COUNT_COLS = [
-    'total_clicks', 'active_days', 'clicks_per_active_day',
-    'clicks_w1', 'clicks_w2', 'clicks_w3', 'clicks_w4', 'n_distinct_sites',
-    'n_distinct_activity_types', 'n_assess_due', 'n_assess_submitted'
-]
+    ordinal_cols = [c for c, m in active_cols.items() if m.get('dtype') == 'ordinal']
+    nominal_cols = [c for c, m in active_cols.items() if m.get('dtype') == 'nominal']
+    numeric_static_cols = [
+        c for c, m in active_cols.items()
+        if m.get('dtype') == 'numeric' and m.get('group') == 'demographic'
+    ]
+    count_cols = [c for c, m in active_cols.items() if m.get('dtype') == 'count']
+    other_num_cols = [
+        c for c, m in active_cols.items()
+        if m.get('dtype') == 'numeric' and m.get('group') != 'demographic'
+    ]
+    flag_cols = [c for c, m in active_cols.items() if m.get('dtype') == 'flag']
 
-OTHER_NUM_COLS = [
-    'click_trend', 'first_active_day', 'last_active_day',
-    'days_since_last_active', 'longest_gap_days',
-    'assess_submit_rate', 'avg_score', 'weighted_score'
-]
+    return {
+        'raw_spec': spec,
+        'ordinal_cols': ordinal_cols,
+        'ordinal_categories': [orders[c] for c in ordinal_cols],
+        'nominal_cols': nominal_cols,
+        'numeric_static_cols': numeric_static_cols,
+        'count_cols': count_cols,
+        'other_num_cols': other_num_cols,
+        'flag_cols': flag_cols,
+        'key_cols': [c for c, m in cols_meta.items() if m.get('role') == 'key'],
+        'label_cols': [c for c, m in cols_meta.items() if m.get('role') == 'label'],
+        'excluded_cols': [c for c, m in cols_meta.items() if m.get('role') == 'excluded'],
+    }
 
-FLAG_COLS = ['imd_missing', 'date_registration_missing', 'no_activity_flag', 'no_assess_flag']
+
+_COL_SPECS = load_column_specs()
+
+ORDINAL_COLS = _COL_SPECS['ordinal_cols']
+ORDINAL_CATEGORIES = _COL_SPECS['ordinal_categories']
+NOMINAL_COLS = _COL_SPECS['nominal_cols']
+NUMERIC_STATIC_COLS = _COL_SPECS['numeric_static_cols']
+COUNT_COLS = _COL_SPECS['count_cols']
+OTHER_NUM_COLS = _COL_SPECS['other_num_cols']
+FLAG_COLS = _COL_SPECS['flag_cols']
 
 
 # -----------------------------------------------------------------------------
@@ -59,7 +86,7 @@ FLAG_COLS = ['imd_missing', 'date_registration_missing', 'no_activity_flag', 'no
 def _clean_missing_tokens(df: pd.DataFrame) -> pd.DataFrame:
     """Chuẩn hóa các chuỗi đại diện giá trị thiếu ('?', khoảng trắng) về np.nan."""
     df_clean = df.copy()
-    missing_tokens = ['?', ' ', '', 'NaN', 'null', 'None']
+    missing_tokens = [MISSING_TOKEN, ' ', '', 'NaN', 'null', 'None']
     for col in NOMINAL_COLS + ORDINAL_COLS + NUMERIC_STATIC_COLS:
         if col in df_clean.columns:
             df_clean[col] = df_clean[col].replace(missing_tokens, np.nan)
@@ -120,7 +147,7 @@ def build_preprocessors():
     # Lưu ý: OneHotEncoder(drop='first', handle_unknown='ignore') sẽ mã hóa giá trị lạ
     # thành vector toàn số 0 (giống với category đầu tiên bị drop).
     preprocessor_linear = ColumnTransformer(transformers=[
-        ('ord', OrdinalEncoder(categories=[EDUCATION_ORDER, IMD_ORDER, AGE_ORDER],
+        ('ord', OrdinalEncoder(categories=ORDINAL_CATEGORIES,
                                handle_unknown='use_encoded_value', unknown_value=-1), ORDINAL_COLS),
         ('nom', OneHotEncoder(drop='first', sparse_output=False, handle_unknown='ignore'), NOMINAL_COLS),
         ('cnt_scaled', num_log_scaler, COUNT_COLS),
@@ -129,7 +156,7 @@ def build_preprocessors():
     ])
 
     preprocessor_tree = ColumnTransformer(transformers=[
-        ('ord', OrdinalEncoder(categories=[EDUCATION_ORDER, IMD_ORDER, AGE_ORDER],
+        ('ord', OrdinalEncoder(categories=ORDINAL_CATEGORIES,
                                handle_unknown='use_encoded_value', unknown_value=-1), ORDINAL_COLS),
         ('nom', OneHotEncoder(drop='first', sparse_output=False, handle_unknown='ignore'), NOMINAL_COLS),
         ('num_raw', 'passthrough', COUNT_COLS + NUMERIC_STATIC_COLS + OTHER_NUM_COLS),
@@ -166,6 +193,7 @@ class OULADPreprocessor(BaseEstimator, TransformerMixin):
 
     def get_feature_names_out(self, input_features=None):
         return self.transformer_.get_feature_names_out(input_features)
+
     def get_numeric_feature_names_out(self, input_features=None) -> np.ndarray:
         """Trả về danh sách tên các cột số đã chuẩn hóa (cnt_scaled__* và num_scaled__*)."""
         if self.model_type != 'linear':
@@ -198,10 +226,11 @@ class OULADPreprocessor(BaseEstimator, TransformerMixin):
 _PIPELINE_CACHE = {}
 
 
-def fit_and_save_pipeline(X_train: pd.DataFrame, output_path: str = "models/preprocessor.joblib") -> dict:
+def fit_and_save_pipeline(X_train: pd.DataFrame, output_path: str = str(PREPROCESSOR_PATH)) -> dict:
     """
     Fit 2 đối tượng OULADPreprocessor ('linear' và 'tree') trên X_train và lưu ra file joblib.
     """
+    output_path = str(output_path)
     out_dir = os.path.dirname(output_path)
     if out_dir:
         os.makedirs(out_dir, exist_ok=True)
@@ -225,11 +254,12 @@ def fit_and_save_pipeline(X_train: pd.DataFrame, output_path: str = "models/prep
     return bundle
 
 
-def load_preprocessor(model_type: str = 'linear', model_path: str = "models/preprocessor.joblib") -> OULADPreprocessor:
+def load_preprocessor(model_type: str = 'linear', model_path: str = str(PREPROCESSOR_PATH)) -> OULADPreprocessor:
     """
     Trả về trực tiếp một Scikit-learn Estimator (OULADPreprocessor) có sẵn .transform()
     và .get_feature_names_out() để khớp với giao diện gọi trong train_lr.py / train_rf.py.
     """
+    model_path = str(model_path)
     if model_path not in _PIPELINE_CACHE:
         loaded = joblib.load(model_path)
         if isinstance(loaded, OULADPreprocessor):
@@ -242,13 +272,15 @@ def load_preprocessor(model_type: str = 'linear', model_path: str = "models/prep
     raise ValueError("model_type phải là 'linear' hoặc 'tree'")
 
 
-def load_and_transform(df: pd.DataFrame, model_type: str = 'linear', model_path: str = "models/preprocessor.joblib"):
+def load_and_transform(df: pd.DataFrame, model_type: str = 'linear', model_path: str = str(PREPROCESSOR_PATH)):
     """
     Hàm tiện ích nạp pipeline và transform trực tiếp df thành mảng numpy + danh sách tên cột.
     """
     prep = load_preprocessor(model_type=model_type, model_path=model_path)
     return prep.transform(df), prep.get_feature_names_out()
-def load_and_transform_numeric(df: pd.DataFrame, model_path: str = "models/preprocessor.joblib"):
+
+
+def load_and_transform_numeric(df: pd.DataFrame, model_path: str = str(PREPROCESSOR_PATH)):
     """
     Hàm tiện ích dành riêng cho PCA: nạp pipeline 'linear' và chỉ trả về
     ma trận các cột số đã scale (cnt_scaled__* và num_scaled__*) kèm tên cột.
