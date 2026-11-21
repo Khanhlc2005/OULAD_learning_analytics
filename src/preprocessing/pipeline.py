@@ -122,8 +122,22 @@ def apply_imputation(df: pd.DataFrame, impute_dict: dict) -> pd.DataFrame:
         if col in df_out.columns:
             df_out[col] = df_out[col].fillna(val)
 
-    # Các biến đếm, tỷ lệ và cờ điền 0
-    zero_fill_cols = COUNT_COLS + OTHER_NUM_COLS + FLAG_COLS
+    # Quy tac dien thieu rieng cho 4 cot ngay VLE khi khong co hoat dong
+    special_day_fills = {
+        'first_active_day': 28,
+        'last_active_day': -1,
+        'days_since_last_active': 28,
+        'longest_gap_days': 28,
+    }
+    for col, fill_val in special_day_fills.items():
+        if col in df_out.columns:
+            df_out[col] = df_out[col].fillna(fill_val)
+
+    # Cac bien dem, ty le va co con lai dien 0
+    zero_fill_cols = [
+        c for c in (COUNT_COLS + OTHER_NUM_COLS + FLAG_COLS)
+        if c not in special_day_fills
+    ]
     for col in zero_fill_cols:
         if col in df_out.columns:
             df_out[col] = df_out[col].fillna(0)

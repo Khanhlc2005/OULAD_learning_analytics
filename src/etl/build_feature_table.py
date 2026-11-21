@@ -213,7 +213,7 @@ def build_feature_table(cutoff_day: int = CUTOFF_DAY, save_outputs: bool = True)
         split_df.to_csv(split_path, index=False)
 
         excl_clean = excluded_df.drop(
-            columns=[c for c in LEAKAGE_COLS + ["label_withdrawn"] if c in excluded_df.columns]
+            columns=[c for c in ["label_withdrawn"] if c in excluded_df.columns]
         )
         excl_clean.to_csv(excluded_path, index=False)
 
