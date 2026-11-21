@@ -9,23 +9,27 @@ Quy tắc: Fit CHỈ trên tập Train, sau đó transform cho Dev và Test.
 """
 
 import os
+import logging
 import joblib
 import numpy as np
 import pandas as pd
+from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder, StandardScaler, FunctionTransformer
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
+
+logger = logging.getLogger(__name__)
 
 # -----------------------------------------------------------------------------
 # 1. KHAI BÁO CÁC NHÓM CỘT ĐẶC TRƯNG CHUẨN
 # -----------------------------------------------------------------------------
 ORDINAL_COLS = ['highest_education', 'imd_band', 'age_band']
 EDUCATION_ORDER = [
-    'No Formal quals', 'Lower Than A Level', 'A Level or Equivalent', 
+    'No Formal quals', 'Lower Than A Level', 'A Level or Equivalent',
     'HE Qualification', 'Post Graduate Qualification'
 ]
 IMD_ORDER = [
-    '0-10%', '10-20', '20-30%', '30-40%', '40-50%', 
+    '0-10%', '10-20', '20-30%', '30-40%', '40-50%',
     '50-60%', '60-70%', '70-80%', '80-90%', '90-100%'
 ]
 AGE_ORDER = ['0-35', '35-55', '55<=']
@@ -35,13 +39,13 @@ NOMINAL_COLS = ['code_module', 'gender', 'region', 'disability']
 NUMERIC_STATIC_COLS = ['num_of_prev_attempts', 'studied_credits', 'date_registration']
 
 COUNT_COLS = [
-    'clicks_pre_start', 'total_clicks', 'active_days', 'clicks_per_active_day',
+    'total_clicks', 'active_days', 'clicks_per_active_day',
     'clicks_w1', 'clicks_w2', 'clicks_w3', 'clicks_w4', 'n_distinct_sites',
     'n_distinct_activity_types', 'n_assess_due', 'n_assess_submitted'
 ]
 
 OTHER_NUM_COLS = [
-    'click_trend', 'first_active_day', 'last_active_day', 
+    'click_trend', 'first_active_day', 'last_active_day',
     'days_since_last_active', 'longest_gap_days',
     'assess_submit_rate', 'avg_score', 'weighted_score'
 ]
@@ -50,21 +54,43 @@ FLAG_COLS = ['imd_missing', 'date_registration_missing', 'no_activity_flag', 'no
 
 
 # -----------------------------------------------------------------------------
-# 2. HÀM FIT THAM SỐ VÀ ĐIỀN KHUYẾT (IMPUTATION)
+# 2. HÀM LÀM SẠCH TOKEN THIẾU, FIT THAM SỐ VÀ ĐIỀN KHUYẾT (IMPUTATION)
 # -----------------------------------------------------------------------------
+def _clean_missing_tokens(df: pd.DataFrame) -> pd.DataFrame:
+    """Chuẩn hóa các chuỗi đại diện giá trị thiếu ('?', khoảng trắng) về np.nan."""
+    df_clean = df.copy()
+    missing_tokens = ['?', ' ', '', 'NaN', 'null', 'None']
+    for col in NOMINAL_COLS + ORDINAL_COLS + NUMERIC_STATIC_COLS:
+        if col in df_clean.columns:
+            df_clean[col] = df_clean[col].replace(missing_tokens, np.nan)
+    return df_clean
+
+
 def get_impute_values(X_train: pd.DataFrame) -> dict:
-    """Tính median (số) và mode (phân loại) chỉ trên tập Train."""
+    """Tính median (số) và mode (phân loại) chỉ trên tập Train sau khi chuẩn hóa '?'."""
+    X_clean = _clean_missing_tokens(X_train)
     impute_dict = {}
     for col in NUMERIC_STATIC_COLS:
-        impute_dict[col] = X_train[col].median()
+        if col in X_clean.columns:
+            impute_dict[col] = pd.to_numeric(X_clean[col], errors='coerce').median()
     for col in NOMINAL_COLS + ORDINAL_COLS:
-        impute_dict[col] = X_train[col].mode()[0]
+        if col in X_clean.columns:
+            impute_dict[col] = X_clean[col].mode()[0]
     return impute_dict
 
 
 def apply_imputation(df: pd.DataFrame, impute_dict: dict) -> pd.DataFrame:
-    """Áp dụng các giá trị điền khuyết đã tính từ Train cho bất kỳ tập dữ liệu nào."""
-    df_out = df.copy()
+    """Áp dụng các giá trị điền khuyết đã tính từ Train và cập nhật cờ thiếu."""
+    df_out = _clean_missing_tokens(df)
+
+    # Cập nhật chuẩn xác cờ thiếu trước khi điền giá trị (xử lý triệt để cả '?' và NaN)
+    if 'imd_band' in df_out.columns:
+        df_out['imd_missing'] = df_out['imd_band'].isna().astype(np.int8)
+    if 'date_registration' in df_out.columns:
+        df_out['date_registration'] = pd.to_numeric(df_out['date_registration'], errors='coerce')
+        df_out['date_registration_missing'] = df_out['date_registration'].isna().astype(np.int8)
+
+    # Điền median / mode từ tập Train
     for col, val in impute_dict.items():
         if col in df_out.columns:
             df_out[col] = df_out[col].fillna(val)
@@ -79,11 +105,10 @@ def apply_imputation(df: pd.DataFrame, impute_dict: dict) -> pd.DataFrame:
 
 
 # -----------------------------------------------------------------------------
-# 3. HÀM TẠO PIPELINE / COLUMNTRANSFORMER
+# 3. HÀM TẠO PIPELINE / COLUMNTRANSFORMER VÀ ESTIMATOR CHUẨN SCIKIT-LEARN
 # -----------------------------------------------------------------------------
 def build_preprocessors():
     """Tạo cấu trúc ColumnTransformer cho cả 2 nhánh mô hình."""
-    # Pipeline biến đổi log1p + standard scaling
     num_log_scaler = Pipeline([
         ('log1p', FunctionTransformer(np.log1p, validate=True, feature_names_out='one-to-one')),
         ('scaler', StandardScaler())
@@ -92,9 +117,10 @@ def build_preprocessors():
         ('scaler', StandardScaler())
     ])
 
-    # Nhánh 1: Linear / Clustering / PCA (Được chuẩn hóa & log1p)
+    # Lưu ý: OneHotEncoder(drop='first', handle_unknown='ignore') sẽ mã hóa giá trị lạ
+    # thành vector toàn số 0 (giống với category đầu tiên bị drop).
     preprocessor_linear = ColumnTransformer(transformers=[
-        ('ord', OrdinalEncoder(categories=[EDUCATION_ORDER, IMD_ORDER, AGE_ORDER], 
+        ('ord', OrdinalEncoder(categories=[EDUCATION_ORDER, IMD_ORDER, AGE_ORDER],
                                handle_unknown='use_encoded_value', unknown_value=-1), ORDINAL_COLS),
         ('nom', OneHotEncoder(drop='first', sparse_output=False, handle_unknown='ignore'), NOMINAL_COLS),
         ('cnt_scaled', num_log_scaler, COUNT_COLS),
@@ -102,9 +128,8 @@ def build_preprocessors():
         ('flags', 'passthrough', FLAG_COLS)
     ])
 
-    # Nhánh 2: Tree-based (RF, XGBoost - Giữ nguyên phân phối số gốc)
     preprocessor_tree = ColumnTransformer(transformers=[
-        ('ord', OrdinalEncoder(categories=[EDUCATION_ORDER, IMD_ORDER, AGE_ORDER], 
+        ('ord', OrdinalEncoder(categories=[EDUCATION_ORDER, IMD_ORDER, AGE_ORDER],
                                handle_unknown='use_encoded_value', unknown_value=-1), ORDINAL_COLS),
         ('nom', OneHotEncoder(drop='first', sparse_output=False, handle_unknown='ignore'), NOMINAL_COLS),
         ('num_raw', 'passthrough', COUNT_COLS + NUMERIC_STATIC_COLS + OTHER_NUM_COLS),
@@ -114,65 +139,119 @@ def build_preprocessors():
     return preprocessor_linear, preprocessor_tree
 
 
+class OULADPreprocessor(BaseEstimator, TransformerMixin):
+    """
+    Wrapper chuẩn Scikit-learn đóng gói toàn bộ bước:
+    Làm sạch token thiếu -> Điền khuyết (fit trên train) -> Mã hóa & Chuẩn hóa.
+    Hỗ trợ gọi trực tiếp .fit(X), .transform(X), .get_feature_names_out().
+    """
+    def __init__(self, model_type: str = 'linear'):
+        if model_type not in ('linear', 'tree'):
+            raise ValueError("model_type phải là 'linear' hoặc 'tree'")
+        self.model_type = model_type
+        self.impute_values_ = {}
+        self.transformer_ = None
+
+    def fit(self, X: pd.DataFrame, y=None):
+        self.impute_values_ = get_impute_values(X)
+        X_imp = apply_imputation(X, self.impute_values_)
+        prep_linear, prep_tree = build_preprocessors()
+        self.transformer_ = prep_linear if self.model_type == 'linear' else prep_tree
+        self.transformer_.fit(X_imp)
+        return self
+
+    def transform(self, X: pd.DataFrame) -> np.ndarray:
+        X_imp = apply_imputation(X, self.impute_values_)
+        return self.transformer_.transform(X_imp)
+
+    def get_feature_names_out(self, input_features=None):
+        return self.transformer_.get_feature_names_out(input_features)
+    def get_numeric_feature_names_out(self, input_features=None) -> np.ndarray:
+        """Trả về danh sách tên các cột số đã chuẩn hóa (cnt_scaled__* và num_scaled__*)."""
+        if self.model_type != 'linear':
+            raise ValueError("Chỉ hỗ trợ trích xuất cột số đã scale với model_type='linear'")
+        all_names = self.get_feature_names_out(input_features)
+        return np.array([
+            name for name in all_names
+            if name.startswith(('cnt_scaled__', 'num_scaled__'))
+        ])
+
+    def transform_numeric(self, X: pd.DataFrame) -> np.ndarray:
+        """
+        Trích xuất riêng ma trận các cột số đã chuẩn hóa (cnt_scaled__* và num_scaled__*)
+        để dùng riêng cho thuật toán PCA (không bao gồm biến phân loại và cờ nhị phân).
+        """
+        if self.model_type != 'linear':
+            raise ValueError("Chỉ hỗ trợ trích xuất cột số đã scale với model_type='linear'")
+        X_full = self.transform(X)
+        all_names = self.get_feature_names_out()
+        num_indices = [
+            idx for idx, name in enumerate(all_names)
+            if name.startswith(('cnt_scaled__', 'num_scaled__'))
+        ]
+        return X_full[:, num_indices]
+
+
 # -----------------------------------------------------------------------------
-# 4. HÀM TIỆN ÍCH FIT & SAVE CHO TOÀN BỘ QUY TRÌNH
+# 4. HÀM TIỆN ÍCH FIT, SAVE & LOAD CHO TOÀN BỘ QUY TRÌNH
 # -----------------------------------------------------------------------------
+_PIPELINE_CACHE = {}
+
+
 def fit_and_save_pipeline(X_train: pd.DataFrame, output_path: str = "models/preprocessor.joblib") -> dict:
     """
-    Fit toàn bộ imputer và 2 pipeline trên X_train, sau đó lưu ra file joblib.
-    Trả về bundle chứa các transformer đã fit sẵn.
+    Fit 2 đối tượng OULADPreprocessor ('linear' và 'tree') trên X_train và lưu ra file joblib.
     """
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    out_dir = os.path.dirname(output_path)
+    if out_dir:
+        os.makedirs(out_dir, exist_ok=True)
 
-    # 1. Tính toán giá trị điền khuyết
-    impute_values = get_impute_values(X_train)
-    X_train_imp = apply_imputation(X_train, impute_values)
-
-    # 2. Xây dựng và fit pipeline
-    prep_linear, prep_tree = build_preprocessors()
-    prep_linear.fit(X_train_imp)
-    prep_tree.fit(X_train_imp)
-
-    # 3. Lấy tên đặc trưng sau biến đổi
-    try:
-        feat_linear = prep_linear.get_feature_names_out()
-    except Exception:
-        feat_linear = [f"f_{i}" for i in range(prep_linear.transform(X_train_imp).shape[1])]
-
-    try:
-        feat_tree = prep_tree.get_feature_names_out()
-    except Exception:
-        feat_tree = [f"f_{i}" for i in range(prep_tree.transform(X_train_imp).shape[1])]
+    prep_linear = OULADPreprocessor(model_type='linear').fit(X_train)
+    prep_tree = OULADPreprocessor(model_type='tree').fit(X_train)
 
     bundle = {
-        'impute_values': impute_values,
-        'preprocessor_linear': prep_linear,
-        'preprocessor_tree': prep_tree,
-        'feature_names_linear': feat_linear,
-        'feature_names_tree': feat_tree
+        'linear': prep_linear,
+        'tree': prep_tree,
+        'impute_values': prep_linear.impute_values_,
+        'preprocessor_linear': prep_linear.transformer_,
+        'preprocessor_tree': prep_tree.transformer_,
+        'feature_names_linear': prep_linear.get_feature_names_out(),
+        'feature_names_tree': prep_tree.get_feature_names_out()
     }
 
     joblib.dump(bundle, output_path)
-    print(f"Đã lưu bundle tiền xử lý thành công tại: {output_path}")
+    _PIPELINE_CACHE[output_path] = bundle
+    logger.info("Đã lưu bundle tiền xử lý thành công tại: %s", output_path)
     return bundle
+
+
+def load_preprocessor(model_type: str = 'linear', model_path: str = "models/preprocessor.joblib") -> OULADPreprocessor:
+    """
+    Trả về trực tiếp một Scikit-learn Estimator (OULADPreprocessor) có sẵn .transform()
+    và .get_feature_names_out() để khớp với giao diện gọi trong train_lr.py / train_rf.py.
+    """
+    if model_path not in _PIPELINE_CACHE:
+        loaded = joblib.load(model_path)
+        if isinstance(loaded, OULADPreprocessor):
+            return loaded
+        _PIPELINE_CACHE[model_path] = loaded
+
+    bundle = _PIPELINE_CACHE[model_path]
+    if model_type in bundle:
+        return bundle[model_type]
+    raise ValueError("model_type phải là 'linear' hoặc 'tree'")
 
 
 def load_and_transform(df: pd.DataFrame, model_type: str = 'linear', model_path: str = "models/preprocessor.joblib"):
     """
-    Hàm tiện ích cho các thành viên khác nạp pipeline và transform trực tiếp df:
-    - model_type='linear': trả về ma trận đã scale (cho LR, K-Means, PCA)
-    - model_type='tree': trả về ma trận số gốc (cho RF, XGBoost)
+    Hàm tiện ích nạp pipeline và transform trực tiếp df thành mảng numpy + danh sách tên cột.
     """
-    bundle = joblib.load(model_path)
-    df_imp = apply_imputation(df, bundle['impute_values'])
-
-    if model_type == 'linear':
-        X_out = bundle['preprocessor_linear'].transform(df_imp)
-        feature_names = bundle['feature_names_linear']
-    elif model_type == 'tree':
-        X_out = bundle['preprocessor_tree'].transform(df_imp)
-        feature_names = bundle['feature_names_tree']
-    else:
-        raise ValueError("model_type phải là 'linear' hoặc 'tree'")
-
-    return X_out, feature_names
+    prep = load_preprocessor(model_type=model_type, model_path=model_path)
+    return prep.transform(df), prep.get_feature_names_out()
+def load_and_transform_numeric(df: pd.DataFrame, model_path: str = "models/preprocessor.joblib"):
+    """
+    Hàm tiện ích dành riêng cho PCA: nạp pipeline 'linear' và chỉ trả về
+    ma trận các cột số đã scale (cnt_scaled__* và num_scaled__*) kèm tên cột.
+    """
+    prep = load_preprocessor(model_type='linear', model_path=model_path)
+    return prep.transform_numeric(df), prep.get_numeric_feature_names_out()
