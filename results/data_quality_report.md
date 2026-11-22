@@ -50,14 +50,6 @@ Số ô '?' thô theo bảng: assessments: 11; vle: 10,486; studentInfo: 1,111; 
 - Ghép studentInfo với studentRegistration bằng đủ 3 khóa: 32,593 dòng (không tăng so với 32,593).
 - Ghép chỉ bằng `id_student`: 40,801 dòng, tức tăng ngoài ý muốn. Luôn ghép đủ 3 khóa.
 
-## 5. Cần xác nhận
+## 5. Feature nhân khẩu học
 
-1. Click có `date < 0` trong studentVle: loại khỏi cửa sổ 0..27 hay tính riêng thành feature "hoạt động trước khóa học"?
-2. `imd_band` và `date_registration`: chỉ mã hóa và tạo cờ; Trường điền mode/median trên train trong `pipeline.py`.
-3. Cột one-hot của `code_module`, `gender`, `region` đặt tên `<tên_cột>_<giá_trị>`, danh sách cột cố định cho cả ba tập.
-4. Bài thiếu `score`: cách tính `avg_score` bỏ bài thiếu điểm, hay coi như chưa nộp.
-5. Dòng trùng hoàn toàn trong studentVle: giữ và cộng dồn `sum_click`, hay khử trùng?
-
-## 6. Feature nhân khẩu học
-
-`src/etl/features_demographic.py` đã chạy thử trên dữ liệu thật: 32,593 dòng, 31 cột feature, đạt.
+`src/etl/features_demographic.py` đã chạy thử trên dữ liệu thật: 32,593 dòng, 11 cột feature, đạt.
