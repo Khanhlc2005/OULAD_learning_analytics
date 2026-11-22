@@ -46,7 +46,9 @@ def build_cohort_and_labels(
 
     # Xuất file cục bộ nếu có đường dẫn
     if early_output_path:
-        os.makedirs(os.path.dirname(early_output_path), exist_ok=True)
+        out_dir = os.path.dirname(str(early_output_path))
+        if out_dir:
+            os.makedirs(out_dir, exist_ok=True)
         excluded_early_df.to_csv(early_output_path, index=False)
 
     # 3. Lọc Cohort chính thức (date_unregistration trống HOẶC >= cutoff_day)

@@ -13,7 +13,7 @@ from config.config import RAW_DATA_DIR, MISSING_TOKEN
 NA_TOKENS = [MISSING_TOKEN, " ", "", "NaN", "null", "None"]
 
 
-def load_all_raw_tables(raw_dir: Path = RAW_DATA_DIR) -> dict:
+def load_raw_tables(raw_dir: Path = RAW_DATA_DIR) -> dict:
     """Doc va chuan hoa kieu du lieu cho toan bo 7 bang CSV goc cua OULAD."""
     raw_dir = Path(raw_dir)
 

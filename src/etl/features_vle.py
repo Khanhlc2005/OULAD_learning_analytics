@@ -46,7 +46,7 @@ def compute_longest_gap(dates_series, cutoff: int = CUTOFF_DAY) -> int:
     return int(max(gaps))
 
 
-def extract_vle_features(
+def build_vle_features(
     cohort_df: pd.DataFrame,
     student_vle_df: pd.DataFrame,
     vle_meta_df: pd.DataFrame,

@@ -4,13 +4,16 @@ Mo ta: Dieu phoi toan bo quy trinh ETL tu du lieu tho den bang dac trung dau ra,
        chia tap train/dev/test theo id_student, sinh feature_dictionary.csv tu
        config/columns.yaml va ho tro chay theo tung moc cutoff_day.
 """
-
 import argparse
 import os
 from pathlib import Path
 import yaml
 import pandas as pd
-from sklearn.model_selection import train_test_split
+from src.etl.load_raw import load_raw_tables
+from src.etl.cohort_labels import build_cohort_and_labels
+from src.etl.features_vle import build_vle_features, VLE_FEATURE_COLS
+from src.etl.features_assessment import build_assessment_features, ASSESS_FEATURE_COLS
+from src.etl.make_split import make_split
 
 from config.config import (
     COLUMNS_YAML,
@@ -23,10 +26,11 @@ from config.config import (
     SPLIT_PATH,
     SPLIT_RATIOS,
 )
-from src.etl.load_raw import load_all_raw_tables
+from src.etl.load_raw import load_raw_tables
 from src.etl.cohort_labels import build_cohort_and_labels
-from src.etl.vle_features import extract_vle_features, VLE_FEATURE_COLS
-from src.etl.assess_features import extract_assessment_features, ASSESS_FEATURE_COLS
+from src.etl.features_vle import build_vle_features, VLE_FEATURE_COLS
+from src.etl.features_assessment import build_assessment_features, ASSESS_FEATURE_COLS
+from src.etl.make_split import make_split
 
 KEY_COLS = ["id_student", "code_module", "code_presentation"]
 
@@ -113,43 +117,9 @@ def export_feature_dictionary(
     return dict_df
 
 
-def create_student_split(df: pd.DataFrame, random_state: int = RANDOM_STATE) -> pd.DataFrame:
-    """Chia tap train/dev/test theo id_student (70/15/15) chong ro ri du lieu."""
-    _, dev_ratio, test_ratio = SPLIT_RATIOS
-    val_test_total = round(dev_ratio + test_ratio, 6)
-    test_share_of_val = test_ratio / val_test_total if val_test_total > 0 else 0.5
-
-    student_labels = df.groupby("id_student")["label_withdrawn"].max().reset_index()
-
-    train_ids, temp_ids = train_test_split(
-        student_labels["id_student"],
-        test_size=val_test_total,
-        random_state=random_state,
-        stratify=student_labels["label_withdrawn"],
-    )
-
-    temp_labels = student_labels[student_labels["id_student"].isin(temp_ids)]["label_withdrawn"]
-    dev_ids, test_ids = train_test_split(
-        temp_ids,
-        test_size=test_share_of_val,
-        random_state=random_state,
-        stratify=temp_labels,
-    )
-
-    split_records = []
-    for s_id in train_ids:
-        split_records.append({"id_student": s_id, "split": "train"})
-    for s_id in dev_ids:
-        split_records.append({"id_student": s_id, "split": "dev"})
-    for s_id in test_ids:
-        split_records.append({"id_student": s_id, "split": "test"})
-
-    return pd.DataFrame(split_records)
-
-
 def build_feature_table(cutoff_day: int = CUTOFF_DAY, save_outputs: bool = True) -> pd.DataFrame:
     """Chay tron bo ETL cho moc cutoff_day va tra ve bang dac trung hoan chinh."""
-    tables = load_all_raw_tables()
+    tables = load_raw_tables()
 
     cohort_df, excluded_df = build_cohort_and_labels(
         tables["studentInfo"],
@@ -157,14 +127,14 @@ def build_feature_table(cutoff_day: int = CUTOFF_DAY, save_outputs: bool = True)
         cutoff_day=cutoff_day,
     )
 
-    cohort_df = extract_vle_features(
+    cohort_df = build_vle_features(
         cohort_df,
         tables["studentVle"],
         tables["vle"],
         cutoff_day=cutoff_day,
     )
 
-    cohort_df = extract_assessment_features(
+    cohort_df = build_assessment_features(
         cohort_df,
         tables["assessments"],
         tables["studentAssessment"],
@@ -176,7 +146,7 @@ def build_feature_table(cutoff_day: int = CUTOFF_DAY, save_outputs: bool = True)
     cohort_df["date_registration_missing"] = cohort_df["date_registration"].isna().astype("int8")
 
     # Tao bang split theo id_student va ghep vao bang dac trung
-    split_df = create_student_split(cohort_df, random_state=RANDOM_STATE)
+    split_df = make_split(cohort_df, ratios=SPLIT_RATIOS, seed=RANDOM_STATE)
     full_df = pd.merge(cohort_df, split_df, on="id_student", how="left")
 
     # Loai bo cot ro ri neu con ton tai

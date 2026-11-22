@@ -21,7 +21,7 @@ ASSESS_FEATURE_COLS = [
 ]
 
 
-def extract_assessment_features(
+def build_assessment_features(
     cohort_df: pd.DataFrame,
     assessments_df: pd.DataFrame,
     student_assessment_df: pd.DataFrame,
