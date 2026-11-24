@@ -258,3 +258,6 @@ data/processed/*
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 .ipynb_checkpoints/
+
+# Chương dự đoán nháp, chưa push
+docs/report/chuong_du_doan_nhap.md

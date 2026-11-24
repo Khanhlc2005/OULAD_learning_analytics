@@ -12,7 +12,7 @@ DROP_COLUMNS = ["id_student", "code_presentation", "label_withdrawn", "split"]
 TARGET = "label_withdrawn"
 
 
-C_GRID = [0.01, 0.1, 1, 10, 100]
+C_GRID = [0.01, 0.1, 1, 10]
 
 
 def build_model(C: float = 1.0) -> LogisticRegression:
@@ -77,6 +77,59 @@ def main(root=".") -> dict:
     m = metrics_positive(y_dev, score, 0.5)  # C=1, L2, ngưỡng 0,5; tinh chỉnh để tuần 4
     append_metrics_row(root / "results/model_metrics.csv", "logistic_regression_C1", "dev", m)
     return m
+
+
+def tune_threshold(y_dev, score) -> pd.DataFrame:
+    """Thử ngưỡng 0.1 -> 0.9 (bước 0.05) trên dev."""
+    from src.models.evaluate import metrics_positive
+
+    rows = [metrics_positive(y_dev, score, t) for t in np.round(np.arange(0.1, 0.9001, 0.05), 2)]
+    return pd.DataFrame(rows)
+
+
+def plot_threshold(table, path):
+    """Vẽ F1 / Precision / Recall theo ngưỡng."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    fig, ax = plt.subplots(figsize=(6, 4))
+    for col in ("f1", "precision", "recall"):
+        ax.plot(table["threshold"], table[col], "o-", label=col)
+    best = table.loc[table["f1"].idxmax(), "threshold"]
+    ax.axvline(best, ls="--", c="gray")
+    ax.set(title="LR (dev): metric theo ngưỡng", xlabel="Ngưỡng", ylabel="Giá trị")
+    ax.legend()
+    fig.tight_layout()
+    fig.savefig(path, dpi=120)
+    return fig
+
+
+def tune_main(root="."):
+    """Tuần 4: chọn C trên dev (ngưỡng 0,5), rồi chọn ngưỡng theo F1 trên dev. Không đụng test."""
+    from src.models.evaluate import append_metrics_row
+
+    root = Path(root)
+    data = load_split_data(root / "data/processed/feature_28d.csv", root / "data/processed/split.csv")
+    pre = load_preprocessor(root / "models/preprocessor.joblib")
+    X_train, y_train = data["train"]
+    X_dev, y_dev = data["dev"]
+    Xt_train, Xt_dev = transform(pre, X_train), transform(pre, X_dev)
+
+    c_table = tune_c(Xt_train, y_train, Xt_dev, y_dev)
+    best_c = float(c_table.loc[c_table["f1"].idxmax(), "C"])  # chọn C theo F1 dev
+
+    score = fit_and_score(build_model(best_c), Xt_train, y_train, Xt_dev)
+    t_table = tune_threshold(y_dev, score)
+    best = t_table.loc[t_table["f1"].idxmax()]  # chọn ngưỡng theo F1 dev
+    fig = plot_threshold(t_table, root / "results/lr_threshold_dev.png")
+
+    m = best.to_dict()
+    for k in ("tn", "fp", "fn", "tp"):
+        m[k] = int(m[k])
+    append_metrics_row(root / "results/model_metrics.csv", f"logistic_regression_tuned_C{best_c:g}", "dev", m)
+    return c_table, best_c, t_table, m, fig
 
 
 if __name__ == "__main__":

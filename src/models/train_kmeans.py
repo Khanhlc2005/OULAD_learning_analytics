@@ -14,6 +14,7 @@ from src.models.train_lr import load_preprocessor, load_split_data, transform
 NUMERIC_PREFIXES = ("cnt_scaled__", "num_scaled__")  # cột số liên tục/đếm, bỏ cờ 0/1
 STUDENT_INFO = "data/raw/studentInfo.csv"
 KEYS = ["id_student", "code_module", "code_presentation"]
+MAIN_FEATURES = ["total_clicks", "active_days", "n_assess_submitted", "avg_score"]  # feature chính để mô tả cụm
 
 
 def load_scaled_numeric(root="."):
@@ -79,7 +80,9 @@ def label_rates(df):
     return df.groupby("cluster").agg(
         n_students=("withdrawn", "size"),
         withdrawn_rate=("withdrawn", "mean"),
+        pass_rate=("final_result", lambda s: (s == "Pass").mean()),
         fail_rate=("final_result", lambda s: (s == "Fail").mean()),
+        distinction_rate=("final_result", lambda s: (s == "Distinction").mean()),
     )
 
 
@@ -95,8 +98,14 @@ def cluster_summary(root, km, data):
         assert len(df) == len(keys) and df.final_result.notna().all(), "ghép studentInfo bị lệch hàng"
         df["cluster"] = km.predict(X)  # train: trùng km.labels_
         df["withdrawn"] = y.to_numpy()
+        if name == "train":  # trung bình feature gốc (chưa chuẩn hóa) theo cụm, chỉ trên train
+            feats = pd.read_csv(root / "data/processed/feature_28d.csv", usecols=KEYS + MAIN_FEATURES)
+            raw = keys.merge(feats, on=KEYS, how="left")
+            means = raw[MAIN_FEATURES].groupby(df["cluster"]).mean().add_prefix("mean_")
         assert ((df.final_result == "Withdrawn") == (df.withdrawn == 1)).all(), "final_result lệch label_withdrawn"
         out.append(label_rates(df).add_prefix(name + "_"))
+        if name == "train":
+            out.append(means)
     return pd.concat(out, axis=1).reset_index()
 
 
