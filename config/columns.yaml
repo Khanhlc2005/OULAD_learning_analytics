@@ -1,0 +1,499 @@
+# =============================================================================
+# CẤU HÌNH ĐẶC TẢ CỘT CHUẨN (SINGLE SOURCE OF TRUTH) - OULAD LEARNING ANALYTICS
+# =============================================================================
+
+ordinal_orders:
+  highest_education:
+    - "No Formal quals"
+    - "Lower Than A Level"
+    - "A Level or Equivalent"
+    - "HE Qualification"
+    - "Post Graduate Qualification"
+  imd_band:
+    - "0-10%"
+    - "10-20"
+    - "20-30%"
+    - "30-40%"
+    - "40-50%"
+    - "50-60%"
+    - "60-70%"
+    - "70-80%"
+    - "80-90%"
+    - "90-100%"
+  age_band:
+    - "0-35"
+    - "35-55"
+    - "55<="
+
+columns:
+  # ---------------------------------------------------------------------------
+  # 1. KHÓA CHÍNH, NHÃN MỤC TIÊU VÀ CỘT PHÂN TẬP (KHÔNG ĐƯA VÀO FEATURE)
+  # ---------------------------------------------------------------------------
+  id_student:
+    role: key
+    group: key
+    dtype: key
+    used_by: []
+    missing: "Không có (khóa chính)"
+    window: "tĩnh"
+    description: "Mã định danh duy nhất của sinh viên trong hệ thống OULAD."
+    source: "studentInfo"
+    formula: "id_student"
+    note: "Dùng để phân chia train/dev/test chống rò rỉ dữ liệu theo sinh viên."
+
+  code_presentation:
+    role: key
+    group: key
+    dtype: key
+    used_by: []
+    missing: "Không có (khóa chính)"
+    window: "tĩnh"
+    description: "Mã kỳ học khai giảng của khóa học (ví dụ 2013J, 2014B)."
+    source: "studentInfo"
+    formula: "code_presentation"
+    note: "Khóa định danh lượt đăng ký, không đưa vào ma trận đặc trưng."
+
+  label_withdrawn:
+    role: label
+    group: label
+    dtype: flag
+    used_by: [lr, rf, xgb]
+    missing: "Không có (nhãn mục tiêu)"
+    window: "cuối kỳ"
+    description: "Nhãn mục tiêu dự đoán sinh viên rút lui khỏi khóa học sau ngày 28 (1 = Withdrawn, 0 = hoàn thành/khác)."
+    source: "studentInfo"
+    formula: "1 if final_result == 'Withdrawn' else 0"
+    note: "Chỉ xét trên cohort còn theo học đến ngày 28."
+
+  split:
+    role: excluded
+    group: excluded
+    dtype: nominal
+    used_by: []
+    missing: "Không có"
+    window: "tĩnh"
+    description: "Phân nhóm tập dữ liệu huấn luyện, kiểm định và kiểm thử (train/dev/test)."
+    source: "split.csv"
+    formula: "Stratified split 70/15/15 theo id_student"
+    note: "Tách riêng ra split.csv; loại bỏ khỏi ma trận X nếu còn tồn tại."
+
+  # ---------------------------------------------------------------------------
+  # 2. NGỮ CẢNH KHÓA HỌC (CONTEXT)
+  # ---------------------------------------------------------------------------
+  code_module:
+    role: context
+    group: context
+    dtype: nominal
+    used_by: [lr, rf, xgb]
+    ablation: all
+    missing: "mode (train)"
+    window: "tĩnh"
+    description: "Mã môn học mà sinh viên đăng ký theo học (AAA đến GGG)."
+    source: "studentInfo"
+    formula: "code_module"
+    note: "Biến ngữ cảnh môn học; có mặt trong tất cả các nhánh ablation, K-Means và PCA không dùng."
+
+  # ---------------------------------------------------------------------------
+  # 3. NHÂN KHẨU HỌC & ĐĂNG KÝ TĨNH (DEMOGRAPHIC)
+  # ---------------------------------------------------------------------------
+  gender:
+    role: feature
+    group: demographic
+    dtype: nominal
+    used_by: [lr, rf, xgb]
+    missing: "mode (train)"
+    window: "tĩnh"
+    description: "Giới tính của sinh viên (M = Nam, F = Nữ)."
+    source: "studentInfo"
+    formula: "gender"
+    note: "Mã hóa One-Hot (drop='first')."
+
+  region:
+    role: feature
+    group: demographic
+    dtype: nominal
+    used_by: [lr, rf, xgb]
+    missing: "mode (train)"
+    window: "tĩnh"
+    description: "Khu vực địa lý tại Vương quốc Anh nơi sinh viên sinh sống."
+    source: "studentInfo"
+    formula: "region"
+    note: "Mã hóa One-Hot (drop='first')."
+
+  highest_education:
+    role: feature
+    group: demographic
+    dtype: ordinal
+    used_by: [lr, rf, xgb]
+    missing: "mode (train)"
+    window: "tĩnh"
+    description: "Trình độ học vấn cao nhất của sinh viên trước khi nhập học."
+    source: "studentInfo"
+    formula: "highest_education"
+    note: "Mã hóa thứ tự từ No Formal quals đến Post Graduate Qualification."
+
+  imd_band:
+    role: feature
+    group: demographic
+    dtype: ordinal
+    used_by: [lr, rf, xgb]
+    missing: "mode (train) + imd_missing"
+    window: "tĩnh"
+    description: "Chỉ số thiếu thốn kinh tế - xã hội (Index of Multiple Deprivation) theo phân vị 10%."
+    source: "studentInfo"
+    formula: "imd_band"
+    note: "Đổi ký tự '?' thành NaN trước khi điền mode từ tập train và bật cờ imd_missing."
+
+  age_band:
+    role: feature
+    group: demographic
+    dtype: ordinal
+    used_by: [lr, rf, xgb]
+    missing: "mode (train)"
+    window: "tĩnh"
+    description: "Nhóm độ tuổi của sinh viên (0-35, 35-55, 55<=)."
+    source: "studentInfo"
+    formula: "age_band"
+    note: "Mã hóa thứ tự tăng dần theo nhóm tuổi."
+
+  num_of_prev_attempts:
+    role: feature
+    group: demographic
+    dtype: numeric
+    used_by: [lr, rf, xgb, kmeans, pca]
+    missing: "median (train)"
+    window: "tĩnh"
+    description: "Số lần sinh viên đã từng học lại môn học này trước đây."
+    source: "studentInfo"
+    formula: "num_of_prev_attempts"
+    note: "Biến số tĩnh, chuẩn hóa StandardScaler cho nhánh tuyến tính."
+
+  studied_credits:
+    role: feature
+    group: demographic
+    dtype: numeric
+    used_by: [lr, rf, xgb, kmeans, pca]
+    missing: "median (train)"
+    window: "tĩnh"
+    description: "Tổng số tín chỉ mà sinh viên đang theo học trong kỳ hiện tại."
+    source: "studentInfo"
+    formula: "studied_credits"
+    note: "Biến số tĩnh phản ánh tải lượng học tập."
+
+  disability:
+    role: feature
+    group: demographic
+    dtype: nominal
+    used_by: [lr, rf, xgb]
+    missing: "mode (train)"
+    window: "tĩnh"
+    description: "Tình trạng khuyết tật của sinh viên (Y = Có, N = Không)."
+    source: "studentInfo"
+    formula: "disability"
+    note: "Mã hóa One-Hot (drop='first')."
+
+  date_registration:
+    role: feature
+    group: demographic
+    dtype: numeric
+    used_by: [lr, rf, xgb, kmeans, pca]
+    missing: "median (train) + date_registration_missing"
+    window: "tĩnh"
+    description: "Số ngày đăng ký khóa học tính tương đối so với ngày khai giảng (âm là đăng ký trước)."
+    source: "studentRegistration"
+    formula: "date_registration"
+    note: "Điền median tập train và bật cờ date_registration_missing."
+
+  imd_missing:
+    role: feature
+    group: demographic
+    dtype: flag
+    used_by: [lr, rf, xgb]
+    missing: "0"
+    window: "tĩnh"
+    description: "Cờ nhị phân đánh dấu bản ghi bị thiếu thông tin imd_band (bao gồm giá trị '?' gốc)."
+    source: "studentInfo"
+    formula: "1 if imd_band is NaN or '?' else 0"
+    note: "Giữ nguyên giá trị 0/1."
+
+  date_registration_missing:
+    role: feature
+    group: demographic
+    dtype: flag
+    used_by: [lr, rf, xgb]
+    missing: "0"
+    window: "tĩnh"
+    description: "Cờ nhị phân đánh dấu bản ghi bị thiếu ngày đăng ký date_registration."
+    source: "studentRegistration"
+    formula: "1 if date_registration is NaN else 0"
+    note: "Giữ nguyên giá trị 0/1."
+
+  # ---------------------------------------------------------------------------
+  # 4. ĐẶC TRƯNG HÀNH VI TƯƠNG TÁC VLE (BEHAVIOR - NGÀY 0 ĐẾN 27)
+  # ---------------------------------------------------------------------------
+  clicks_pre_start:
+    role: excluded
+    group: behavior
+    dtype: count
+    used_by: []
+    missing: "0"
+    window: "ngày < 0"
+    description: "Tổng số lượt click trên hệ thống VLE trước ngày khai giảng chính thức."
+    source: "studentVle"
+    formula: "sum(sum_click) where date < 0"
+    note: "Tạm loại khỏi ma trận đặc trưng để tuân thủ chặt chẽ cửa sổ ngày 0-27."
+
+  total_clicks:
+    role: feature
+    group: behavior
+    dtype: count
+    used_by: [lr, rf, xgb, kmeans, pca]
+    missing: "0"
+    window: "ngày 0–27"
+    description: "Tổng số lượt tương tác click trên hệ thống VLE trong 28 ngày đầu khóa học."
+    source: "studentVle"
+    formula: "sum(sum_click) where 0 <= date < 28"
+    note: "Áp dụng log1p + StandardScaler cho nhánh tuyến tính/phân cụm."
+
+  active_days:
+    role: feature
+    group: behavior
+    dtype: count
+    used_by: [lr, rf, xgb, kmeans, pca]
+    missing: "0"
+    window: "ngày 0–27"
+    description: "Số ngày duy nhất sinh viên có phát sinh tương tác click trên VLE trong 28 ngày đầu."
+    source: "studentVle"
+    formula: "count(distinct date) where 0 <= date < 28"
+    note: "Áp dụng log1p + StandardScaler cho nhánh tuyến tính/phân cụm."
+
+  clicks_per_active_day:
+    role: feature
+    group: behavior
+    dtype: count
+    used_by: [lr, rf, xgb, kmeans, pca]
+    missing: "0"
+    window: "ngày 0–27"
+    description: "Cường độ tương tác trung bình trên mỗi ngày có hoạt động của sinh viên."
+    source: "studentVle"
+    formula: "total_clicks / active_days if active_days > 0 else 0"
+    note: "Áp dụng log1p + StandardScaler cho nhánh tuyến tính/phân cụm."
+
+  clicks_w1:
+    role: feature
+    group: behavior
+    dtype: count
+    used_by: [lr, rf, xgb, kmeans, pca]
+    missing: "0"
+    window: "ngày 0–6"
+    description: "Tổng số lượt click trên VLE trong tuần học thứ nhất (ngày 0 đến ngày 6)."
+    source: "studentVle"
+    formula: "sum(sum_click) where 0 <= date <= 6"
+    note: "Áp dụng log1p + StandardScaler cho nhánh tuyến tính/phân cụm."
+
+  clicks_w2:
+    role: feature
+    group: behavior
+    dtype: count
+    used_by: [lr, rf, xgb, kmeans, pca]
+    missing: "0"
+    window: "ngày 7–13"
+    description: "Tổng số lượt click trên VLE trong tuần học thứ hai (ngày 7 đến ngày 13)."
+    source: "studentVle"
+    formula: "sum(sum_click) where 7 <= date <= 13"
+    note: "Áp dụng log1p + StandardScaler cho nhánh tuyến tính/phân cụm."
+
+  clicks_w3:
+    role: feature
+    group: behavior
+    dtype: count
+    used_by: [lr, rf, xgb, kmeans, pca]
+    missing: "0"
+    window: "ngày 14–20"
+    description: "Tổng số lượt click trên VLE trong tuần học thứ ba (ngày 14 đến ngày 20)."
+    source: "studentVle"
+    formula: "sum(sum_click) where 14 <= date <= 20"
+    note: "Áp dụng log1p + StandardScaler cho nhánh tuyến tính/phân cụm."
+
+  clicks_w4:
+    role: feature
+    group: behavior
+    dtype: count
+    used_by: [lr, rf, xgb, kmeans, pca]
+    missing: "0"
+    window: "ngày 21–27"
+    description: "Tổng số lượt click trên VLE trong tuần học thứ tư (ngày 21 đến ngày 27)."
+    source: "studentVle"
+    formula: "sum(sum_click) where 21 <= date <= 27"
+    note: "Áp dụng log1p + StandardScaler cho nhánh tuyến tính/phân cụm."
+
+  click_trend:
+    role: feature
+    group: behavior
+    dtype: numeric
+    used_by: [lr, rf, xgb, kmeans, pca]
+    missing: "0"
+    window: "ngày 0–27"
+    description: "Chỉ số xu hướng thay đổi mức độ tương tác giữa nửa sau (ngày 14–27) và nửa đầu (ngày 0–13)."
+    source: "studentVle"
+    formula: "(clicks_second_half - clicks_first_half) / (total_clicks + 1)"
+    note: "Giá trị thuộc (-1, 1); không áp dụng log1p vì có thể mang giá trị âm."
+
+  n_distinct_sites:
+    role: feature
+    group: behavior
+    dtype: count
+    used_by: [lr, rf, xgb, kmeans, pca]
+    missing: "0"
+    window: "ngày 0–27"
+    description: "Số lượng tài nguyên/trang học liệu duy nhất (id_site) sinh viên đã truy cập."
+    source: "studentVle"
+    formula: "count(distinct id_site) where 0 <= date < 28"
+    note: "Phản ánh độ rộng tiếp cận tài nguyên học tập."
+
+  n_distinct_activity_types:
+    role: feature
+    group: behavior
+    dtype: count
+    used_by: [lr, rf, xgb, kmeans, pca]
+    missing: "0"
+    window: "ngày 0–27"
+    description: "Số loại hình hoạt động học tập khác nhau (forum, quiz, resource...) sinh viên đã tham gia."
+    source: "studentVle, vle"
+    formula: "count(distinct activity_type) where 0 <= date < 28"
+    note: "Phản ánh mức độ đa dạng hành vi học tập."
+
+  first_active_day:
+    role: feature
+    group: behavior
+    dtype: numeric
+    used_by: [lr, rf, xgb, kmeans, pca]
+    missing: "28 (khi không có click trong cửa sổ)"
+    window: "ngày 0–27"
+    description: "Ngày đầu tiên sinh viên phát sinh tương tác VLE trong cửa sổ 28 ngày."
+    source: "studentVle"
+    formula: "min(date) where 0 <= date < 28, else 28"
+    note: "Quy ước bằng CUTOFF_DAY (28) nếu sinh viên không có hoạt động nào."
+
+  last_active_day:
+    role: feature
+    group: behavior
+    dtype: numeric
+    used_by: [lr, rf, xgb, kmeans, pca]
+    missing: "-1 (khi không có click trong cửa sổ)"
+    window: "ngày 0–27"
+    description: "Ngày gần nhất sinh viên phát sinh tương tác VLE trong cửa sổ 28 ngày."
+    source: "studentVle"
+    formula: "max(date) where 0 <= date < 28, else -1"
+    note: "Quy ước bằng -1 nếu sinh viên không có hoạt động nào."
+
+  days_since_last_active:
+    role: feature
+    group: behavior
+    dtype: numeric
+    used_by: [lr, rf, xgb, kmeans, pca]
+    missing: "28 (khi không có click trong cửa sổ)"
+    window: "ngày 0–27"
+    description: "Số ngày trôi qua kể từ lần tương tác VLE cuối cùng đến hết ngày 27."
+    source: "studentVle"
+    formula: "27 - last_active_day"
+    note: "Bằng 28 khi last_active_day = -1."
+
+  longest_gap_days:
+    role: feature
+    group: behavior
+    dtype: numeric
+    used_by: [lr, rf, xgb, kmeans, pca]
+    missing: "28 (khi không có click trong cửa sổ)"
+    window: "ngày 0–27"
+    description: "Chuỗi ngày liên tiếp dài nhất sinh viên không truy cập VLE trong khoảng ngày 0–27."
+    source: "studentVle"
+    formula: "max consecutive inactive days in [0, 27]"
+    note: "Bằng CUTOFF_DAY (28) nếu sinh viên hoàn toàn không truy cập."
+
+  no_activity_flag:
+    role: feature
+    group: behavior
+    dtype: flag
+    used_by: [lr, rf, xgb]
+    missing: "0"
+    window: "ngày 0–27"
+    description: "Cờ nhị phân đánh dấu sinh viên hoàn toàn không có lượt click nào trong 28 ngày đầu."
+    source: "studentVle"
+    formula: "1 if total_clicks == 0 else 0"
+    note: "Giữ nguyên giá trị 0/1."
+
+  # ---------------------------------------------------------------------------
+  # 5. ĐẶC TRƯNG BÀI ĐÁNH GIÁ (ASSESSMENT - HẠN NỘP < 28 NGÀY)
+  # ---------------------------------------------------------------------------
+  n_assess_due:
+    role: feature
+    group: assessment
+    dtype: count
+    used_by: [lr, rf, xgb, kmeans, pca]
+    missing: "0"
+    window: "ngày 0–27"
+    description: "Tổng số bài đánh giá thường xuyên (khác Exam) có hạn nộp trước ngày 28 của môn học."
+    source: "assessments"
+    formula: "count(id_assessment) where assessment_type != 'Exam' and date < 28"
+    note: "Phụ thuộc vào cấu trúc lịch trình từng môn/kỳ."
+
+  n_assess_submitted:
+    role: feature
+    group: assessment
+    dtype: count
+    used_by: [lr, rf, xgb, kmeans, pca]
+    missing: "0"
+    window: "ngày 0–27"
+    description: "Số lượng bài đánh giá đến hạn trước ngày 28 mà sinh viên đã thực nộp trước ngày 28."
+    source: "studentAssessment, assessments"
+    formula: "count(id_assessment) where is_banked == 0 and date_submitted < 28"
+    note: "Loại bỏ các bài bảo lưu điểm (is_banked == 1) để tránh rò rỉ."
+
+  assess_submit_rate:
+    role: feature
+    group: assessment
+    dtype: numeric
+    used_by: [lr, rf, xgb, kmeans, pca]
+    missing: "0.0"
+    window: "ngày 0–27"
+    description: "Tỷ lệ hoàn thành nộp bài đánh giá đến hạn trước ngày 28."
+    source: "studentAssessment, assessments"
+    formula: "clip(n_assess_submitted / n_assess_due, 0.0, 1.0) if n_assess_due > 0 else 0.0"
+    note: "Giá trị nằm trong đoạn [0.0, 1.0]."
+
+  avg_score:
+    role: feature
+    group: assessment
+    dtype: numeric
+    used_by: [lr, rf, xgb, kmeans, pca]
+    missing: "0.0 + no_assess_flag"
+    window: "ngày 0–27"
+    description: "Điểm trung bình cộng các bài đánh giá đã nộp hợp lệ trước ngày 28."
+    source: "studentAssessment, assessments"
+    formula: "mean(score) where date_submitted < 28, else 0.0"
+    note: "Điền 0.0 khi chưa nộp bài kèm cờ no_assess_flag = 1."
+
+  weighted_score:
+    role: feature
+    group: assessment
+    dtype: numeric
+    used_by: [lr, rf, xgb, kmeans, pca]
+    missing: "0.0 + no_assess_flag"
+    window: "ngày 0–27"
+    description: "Tổng điểm nhân trọng số quy đổi của các bài đánh giá đã nộp trước ngày 28."
+    source: "studentAssessment, assessments"
+    formula: "sum(score * weight) / 100.0"
+    note: "Điền 0.0 khi chưa nộp bài kèm cờ no_assess_flag = 1."
+
+  no_assess_flag:
+    role: feature
+    group: assessment
+    dtype: flag
+    used_by: [lr, rf, xgb]
+    missing: "0"
+    window: "ngày 0–27"
+    description: "Cờ nhị phân đánh dấu sinh viên chưa nộp bài đánh giá nào trước ngày 28."
+    source: "studentAssessment"
+    formula: "1 if n_assess_submitted == 0 else 0"
+    note: "Giữ nguyên giá trị 0/1."
