@@ -1,137 +1,99 @@
 model,feature,importance
-random_forest,num__date_registration,0.059471904479288525
-random_forest,num__avg_score,0.054228394196003664
-random_forest,num__click_trend,0.05152856806056483
-random_forest,num__clicks_per_active_day,0.04958218171105155
-random_forest,num__total_clicks,0.04802474974987258
-random_forest,num__clicks_w3,0.04560205818530605
-random_forest,num__clicks_w1,0.043891005949652125
-random_forest,num__clicks_w2,0.04325935332843338
-random_forest,num__clicks_w4,0.042169801142817646
-random_forest,num__n_distinct_sites,0.0416957325702663
-random_forest,num__weighted_score,0.03883959072432463
-random_forest,num__active_days,0.034739758593909056
-random_forest,num__longest_gap_days,0.03305787393885931
-random_forest,num__studied_credits,0.02705327753354321
-random_forest,num__first_active_day,0.026477666748126995
-random_forest,num__days_since_last_active,0.02361006655337596
-random_forest,num__last_active_day,0.023485731638523778
-random_forest,num__n_distinct_activity_types,0.023284631346223574
-random_forest,num__n_assess_due,0.013772227799219283
-random_forest,cat__highest_education_Lower Than A Level,0.010358710456698889
-random_forest,num__num_of_prev_attempts,0.010129051226584586
-random_forest,cat__code_module_GGG,0.010038775979037868
-random_forest,cat__code_module_CCC,0.00970015156477329
-random_forest,cat__code_module_BBB,0.009130758390476194
-random_forest,cat__highest_education_A Level or Equivalent,0.008694079473275152
-random_forest,cat__age_band_35-55,0.007865245358295893
-random_forest,cat__age_band_0-35,0.007696393846105779
-random_forest,cat__gender_F,0.007522392962987547
-random_forest,cat__gender_M,0.007373697373909568
-random_forest,cat__imd_band_10-20,0.00729418513133232
-random_forest,cat__imd_band_20-30%,0.007203947205510109
-random_forest,cat__code_module_DDD,0.00712938181071803
-random_forest,cat__region_Scotland,0.007107710180857926
-random_forest,cat__region_East Anglian Region,0.0069274095206536745
-random_forest,cat__highest_education_HE Qualification,0.006767169545815489
-random_forest,cat__imd_band_30-40%,0.006635715464257518
-random_forest,cat__imd_band_0-10%,0.006401306780582038
-random_forest,cat__disability_Y,0.006220841855317821
-random_forest,cat__region_West Midlands Region,0.006025958438601328
-random_forest,cat__imd_band_40-50%,0.00601883561922351
-random_forest,cat__imd_band_50-60%,0.006009526184210056
-random_forest,cat__imd_band_70-80%,0.005978726441609056
-random_forest,cat__region_North Western Region,0.0059697798490118935
-random_forest,cat__region_London Region,0.005904989660333909
-random_forest,cat__region_South Region,0.0058688521407004165
-random_forest,cat__region_Wales,0.005852994845613909
-random_forest,cat__disability_N,0.005734052727322401
-random_forest,cat__region_East Midlands Region,0.005614491434700132
-random_forest,cat__imd_band_60-70%,0.005513432703622732
-random_forest,cat__region_South West Region,0.005493565942631454
-random_forest,cat__imd_band_80-90%,0.005470205384149659
-random_forest,cat__imd_band_90-100%,0.005362627737778478
-random_forest,cat__code_module_FFF,0.004995234778163863
-random_forest,cat__region_South East Region,0.004930067061463682
-random_forest,cat__region_Yorkshire Region,0.004855088539318804
-random_forest,num__assess_submit_rate,0.004222101208231141
-random_forest,cat__region_North Region,0.0040353826799807355
-random_forest,cat__region_Ireland,0.003855761835328655
-random_forest,num__n_assess_submitted,0.0038144493588196577
-random_forest,cat__code_module_EEE,0.0035618620136670266
-random_forest,num__no_assess_flag,0.002813958785938553
-random_forest,num__imd_missing,0.0025610464205633
-random_forest,cat__code_module_AAA,0.0021678136832553236
-random_forest,cat__highest_education_No Formal quals,0.0013081778964667598
-random_forest,cat__highest_education_Post Graduate Qualification,0.0010451522829571678
-random_forest,cat__age_band_55<=,0.0005070514415174833
-random_forest,num__no_activity_flag,0.00043595030636838276
-random_forest,num__date_registration_missing,0.00010136422189833735
-xgboost,num__n_assess_due,0.1387963742017746
-xgboost,cat__code_module_CCC,0.08636375516653061
-xgboost,num__avg_score,0.06283712387084961
-xgboost,cat__code_module_BBB,0.04686128720641136
-xgboost,cat__code_module_DDD,0.04158999025821686
-xgboost,num__assess_submit_rate,0.03494744375348091
-xgboost,cat__disability_N,0.03125673159956932
-xgboost,cat__code_module_GGG,0.03072682023048401
-xgboost,num__studied_credits,0.028966033831238747
-xgboost,cat__highest_education_Lower Than A Level,0.026169702410697937
-xgboost,num__last_active_day,0.023278245702385902
-xgboost,num__longest_gap_days,0.022261526435613632
-xgboost,cat__code_module_FFF,0.01817532628774643
-xgboost,num__clicks_w1,0.017202744260430336
-xgboost,num__n_assess_submitted,0.016353152692317963
-xgboost,num__clicks_w4,0.014770254492759705
-xgboost,cat__code_module_EEE,0.014662644825875759
-xgboost,cat__region_Scotland,0.014106552116572857
-xgboost,num__active_days,0.013951482251286507
-xgboost,num__clicks_w2,0.013311468996107578
-xgboost,cat__region_Wales,0.012942022643983364
-xgboost,num__date_registration,0.012893537990748882
-xgboost,cat__highest_education_A Level or Equivalent,0.012581163085997105
-xgboost,num__num_of_prev_attempts,0.012380596250295639
-xgboost,num__n_distinct_activity_types,0.012250441126525402
-xgboost,num__weighted_score,0.01193216722458601
-xgboost,num__total_clicks,0.011786735616624355
-xgboost,cat__gender_F,0.011643745936453342
-xgboost,cat__age_band_55<=,0.011501483619213104
-xgboost,num__clicks_w3,0.010866091586649418
-xgboost,num__clicks_per_active_day,0.010236246511340141
-xgboost,num__n_distinct_sites,0.00978358369320631
-xgboost,cat__imd_band_70-80%,0.00974894966930151
-xgboost,num__click_trend,0.009644053876399994
-xgboost,cat__region_East Midlands Region,0.0091194286942482
-xgboost,cat__region_North Western Region,0.008669216185808182
-xgboost,cat__region_Ireland,0.008591445162892342
-xgboost,cat__region_East Anglian Region,0.008531859144568443
-xgboost,cat__highest_education_HE Qualification,0.008423324674367905
-xgboost,cat__imd_band_20-30%,0.008372409269213676
-xgboost,num__first_active_day,0.008339428342878819
-xgboost,cat__region_South East Region,0.008035766892135143
-xgboost,cat__region_London Region,0.007869763299822807
-xgboost,cat__imd_band_10-20,0.007484207861125469
-xgboost,cat__region_North Region,0.007306993473321199
-xgboost,cat__code_module_AAA,0.007033878937363625
-xgboost,num__imd_missing,0.006815627682954073
-xgboost,cat__imd_band_0-10%,0.0066838045604527
-xgboost,cat__age_band_0-35,0.006441745441406965
-xgboost,cat__imd_band_60-70%,0.006394120864570141
-xgboost,cat__imd_band_90-100%,0.006370305549353361
-xgboost,cat__highest_education_No Formal quals,0.004515234846621752
-xgboost,cat__imd_band_40-50%,0.00424717552959919
-xgboost,cat__imd_band_80-90%,0.003974719904363155
-xgboost,num__date_registration_missing,0.0
-xgboost,num__days_since_last_active,0.0
-xgboost,num__no_activity_flag,0.0
-xgboost,num__no_assess_flag,0.0
-xgboost,cat__gender_M,0.0
-xgboost,cat__region_South Region,0.0
-xgboost,cat__region_South West Region,0.0
-xgboost,cat__region_West Midlands Region,0.0
-xgboost,cat__region_Yorkshire Region,0.0
-xgboost,cat__highest_education_Post Graduate Qualification,0.0
-xgboost,cat__imd_band_30-40%,0.0
-xgboost,cat__imd_band_50-60%,0.0
-xgboost,cat__age_band_35-55,0.0
-xgboost,cat__disability_Y,0.0
+random_forest,num_raw__date_registration,0.06733887763185759
+random_forest,num_raw__avg_score,0.05554244940449235
+random_forest,num_raw__clicks_per_active_day,0.05406827532848128
+random_forest,num_raw__click_trend,0.0540340300880482
+random_forest,num_raw__total_clicks,0.05303435458116784
+random_forest,num_raw__clicks_w3,0.04747961790975406
+random_forest,num_raw__clicks_w1,0.04691227950991639
+random_forest,num_raw__clicks_w2,0.04626671173505779
+random_forest,num_raw__clicks_w4,0.04460677715723027
+random_forest,num_raw__n_distinct_sites,0.04295483947901548
+random_forest,num_raw__weighted_score,0.04071276908106725
+random_forest,ord__imd_band,0.040132167522422935
+random_forest,num_raw__active_days,0.03681353144472162
+random_forest,num_raw__longest_gap_days,0.034135033512621045
+random_forest,num_raw__studied_credits,0.029612178090870404
+random_forest,num_raw__first_active_day,0.02736537004162372
+random_forest,num_raw__last_active_day,0.024794720820632783
+random_forest,num_raw__n_distinct_activity_types,0.024780688693241827
+random_forest,num_raw__days_since_last_active,0.024758289935116067
+random_forest,ord__highest_education,0.021966113129565104
+random_forest,num_raw__n_assess_due,0.015195879017524545
+random_forest,nom__code_module_CCC,0.01133841221623186
+random_forest,num_raw__num_of_prev_attempts,0.010917771981947962
+random_forest,ord__age_band,0.010438503624800524
+random_forest,nom__gender_M,0.010200013089160824
+random_forest,nom__disability_Y,0.009432663909723025
+random_forest,nom__code_module_BBB,0.009127664785462893
+random_forest,nom__code_module_GGG,0.00793450483227694
+random_forest,nom__region_Scotland,0.007865526383279456
+random_forest,nom__code_module_DDD,0.007075585064484119
+random_forest,nom__region_West Midlands Region,0.006194973900518629
+random_forest,nom__region_North Western Region,0.006131687058889548
+random_forest,nom__region_Wales,0.0060461308762336
+random_forest,nom__region_London Region,0.005997593092306254
+random_forest,nom__region_East Midlands Region,0.0059802959970807566
+random_forest,nom__region_South Region,0.00597055465791346
+random_forest,nom__region_South West Region,0.005681258162930371
+random_forest,nom__region_South East Region,0.0052712644694481855
+random_forest,nom__code_module_FFF,0.005168888548466991
+random_forest,nom__region_Yorkshire Region,0.005162197116457522
+random_forest,nom__region_Ireland,0.004480233691451102
+random_forest,nom__region_North Region,0.00403533410966812
+random_forest,num_raw__n_assess_submitted,0.003907160797116334
+random_forest,flags__no_assess_flag,0.003323779541647705
+random_forest,num_raw__assess_submit_rate,0.0033211533618249917
+random_forest,nom__code_module_EEE,0.0032636874831190343
+random_forest,flags__imd_missing,0.002655857595802702
+random_forest,flags__no_activity_flag,0.00045972082262546086
+random_forest,flags__date_registration_missing,0.00011262871470315841
+xgboost,num_raw__n_assess_due,0.16724225878715515
+xgboost,nom__code_module_CCC,0.07986792176961899
+xgboost,num_raw__avg_score,0.07281219214200974
+xgboost,nom__code_module_BBB,0.053790777921676636
+xgboost,nom__disability_Y,0.036867961287498474
+xgboost,nom__code_module_GGG,0.03632331266999245
+xgboost,num_raw__studied_credits,0.03358083590865135
+xgboost,nom__code_module_DDD,0.030910613015294075
+xgboost,num_raw__assess_submit_rate,0.029970087110996246
+xgboost,num_raw__last_active_day,0.02974770963191986
+xgboost,num_raw__longest_gap_days,0.025961481034755707
+xgboost,ord__highest_education,0.024309294298291206
+xgboost,num_raw__active_days,0.021237799897789955
+xgboost,num_raw__clicks_w1,0.0187853891402483
+xgboost,num_raw__n_assess_submitted,0.0172943826764822
+xgboost,num_raw__total_clicks,0.016607755795121193
+xgboost,nom__region_Wales,0.015570045448839664
+xgboost,num_raw__clicks_w4,0.015326442196965218
+xgboost,num_raw__weighted_score,0.015131617896258831
+xgboost,num_raw__clicks_w2,0.01512442622333765
+xgboost,num_raw__n_distinct_sites,0.014672249555587769
+xgboost,nom__code_module_EEE,0.014418704435229301
+xgboost,num_raw__date_registration,0.013889944180846214
+xgboost,num_raw__num_of_prev_attempts,0.013422578573226929
+xgboost,num_raw__clicks_w3,0.012760115787386894
+xgboost,ord__imd_band,0.012697315774857998
+xgboost,num_raw__n_distinct_activity_types,0.012591461651027203
+xgboost,num_raw__clicks_per_active_day,0.012465318664908409
+xgboost,nom__region_West Midlands Region,0.011918292380869389
+xgboost,flags__imd_missing,0.011701143346726894
+xgboost,nom__region_Scotland,0.011630542576313019
+xgboost,nom__region_North Region,0.010980051942169666
+xgboost,num_raw__click_trend,0.01055924128741026
+xgboost,num_raw__first_active_day,0.010488406755030155
+xgboost,nom__gender_M,0.00965504627674818
+xgboost,nom__region_South East Region,0.008828709833323956
+xgboost,nom__region_North Western Region,0.00841745175421238
+xgboost,nom__region_London Region,0.008348725736141205
+xgboost,nom__code_module_FFF,0.008273926563560963
+xgboost,ord__age_band,0.007603667676448822
+xgboost,nom__region_Ireland,0.007583948317915201
+xgboost,nom__region_East Midlands Region,0.007177524268627167
+xgboost,nom__region_South Region,0.0034533655270934105
+xgboost,nom__region_South West Region,0.0
+xgboost,nom__region_Yorkshire Region,0.0
+xgboost,num_raw__days_since_last_active,0.0
+xgboost,flags__date_registration_missing,0.0
+xgboost,flags__no_activity_flag,0.0
+xgboost,flags__no_assess_flag,0.0
