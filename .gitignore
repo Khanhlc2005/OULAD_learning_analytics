@@ -261,3 +261,5 @@ data/processed/*
 
 # Downloaded Kaggle model data and fitted artifacts
 /dataset/
+# Chương dự đoán nháp, chưa push
+docs/report/chuong_du_doan_nhap.md
