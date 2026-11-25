@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "model": "logistic_regression",
+  "C": 0.1,
+  "threshold": 0.55,
+  "raw_features": [
+    "code_module",
+    "gender",
+    "region",
+    "highest_education",
+    "imd_band",
+    "age_band",
+    "disability",
+    "num_of_prev_attempts",
+    "studied_credits",
+    "date_registration",
+    "imd_missing",
+    "date_registration_missing",
+    "total_clicks",
+    "active_days",
+    "clicks_per_active_day",
+    "clicks_w1",
+    "clicks_w2",
+    "clicks_w3",
+    "clicks_w4",
+    "click_trend",
+    "n_distinct_sites",
+    "n_distinct_activity_types",
+    "first_active_day",
+    "last_active_day",
+    "days_since_last_active",
+    "longest_gap_days",
+    "no_activity_flag",
+    "n_assess_due",
+    "n_assess_submitted",
+    "assess_submit_rate",
+    "avg_score",
+    "weighted_score",
+    "no_assess_flag"
+  ],
+  "n_transformed_features": 49,
+  "selection": "dev F1 at threshold 0.5 for C; dev F1 for threshold 0.10..0.90 step 0.05",
+  "library_versions": {
+    "sklearn": "1.9.1",
+    "pandas": "3.0.6"
+  },
+  "input_sha256": {
+    "feature_28d.csv": "d72c4bb78d0462eb2c09e9320b2e9486d1307b7d55006fbd24a865bd2d3b8f72",
+    "split.csv": "1e3d1741c7bcab32d87d49fdc1e2a4ba9d3dc6155c39ef4b78ca9adaa8848c5f",
+    "preprocessor.joblib": "c8684b1ad97677ac7e2f87e84f1d37adf255fc582ffaa34e0cae8c2a08b5d2c6"
+  }
+}
