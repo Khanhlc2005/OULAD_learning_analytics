@@ -6,10 +6,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from sklearn.compose import ColumnTransformer
-from sklearn.impute import SimpleImputer
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OneHotEncoder
+from src.preprocessing.pipeline import load_preprocessor as load_shared_preprocessor
 
 from src.models.evaluate import metrics_positive
 from src.models.train_rf import train_rf
@@ -62,25 +59,17 @@ def load_data(dataset_dir):
     return features
 
 
-def build_preprocessor():
-    # Fit only on train. Identical raw information for RF and XGBoost.
-    return ColumnTransformer([
-        ("num", SimpleImputer(strategy="median"), NUMERIC),
-        ("cat", Pipeline([
-            ("impute", SimpleImputer(strategy="most_frequent")),
-            ("onehot", OneHotEncoder(handle_unknown="ignore", sparse_output=False)),
-        ]), CATEGORICAL),
-    ], sparse_threshold=0)
-
-
 def run(dataset_dir, results_dir):
     data = load_data(dataset_dir)
     train = data.loc[data.split == "train"]
     dev = data.loc[data.split == "dev"]
-    pre = build_preprocessor()
-    train_values = pre.fit_transform(train[FEATURES])
+    # Artifact do nhom tien xu ly fit tren train; chi transform train/dev tai day.
+    pre = load_shared_preprocessor(model_type="tree", model_path=str(Path(dataset_dir) / "preprocessor.joblib"))
     encoded_names = list(pre.get_feature_names_out())
-    # XGBoost rejects brackets in names such as imd_band_[0-10).
+    if len(encoded_names) != 49 or any(any(token in name for token in FORBIDDEN) for name in encoded_names):
+        raise ValueError("Schema 49 feature tree khong hop le hoac co cot cam")
+    train_values = pre.transform(train[FEATURES])
+    # XGBoost co the tu choi mot so ky tu trong ten feature; giu mapping rieng.
     safe_names = [f"f{i:03d}" for i in range(train_values.shape[1])]
     x_train = pd.DataFrame(train_values, columns=safe_names)
     x_dev = pd.DataFrame(pre.transform(dev[FEATURES]), columns=safe_names)
