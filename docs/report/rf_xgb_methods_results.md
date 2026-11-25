@@ -64,16 +64,35 @@ XGBoost có recall và PR-AUC cao nhất trong ba mô hình, nhưng có nhiều 
 
 Cột `code_module` có danh mục `CCC` ở 496 lượt test 2014 nhưng không có trong train 2013; encoder mã hóa danh mục chưa thấy thành vector toàn 0. Vì vậy kết quả này phản ánh cả sự thay đổi môn học và biến động theo thời gian, không cô lập được nguyên nhân của mức giảm hiệu năng. Do fit trên 2013 train ít hơn nhiều so với toàn train, không so sánh trực tiếp trị số với test chính như một thí nghiệm chỉ thay đổi năm.
 
+## Feature importance của cấu hình đã khóa
+
+Fit lại RF `rf_leaf5_200` và XGBoost `xgb_depth4_200` **chỉ trên toàn train** bằng nhánh `tree` đã khóa; không dùng dev/test để tính importance. Bảng 49 feature sau mã hóa nằm trong `results/rf_xgb_locked_importance_encoded.csv`. Với one-hot, cộng importance của các mức cùng một cột để có bảng 33 cột gốc trong `results/rf_xgb_locked_importance_raw.csv`.
+
+| Mô hình | Năm cột gốc có importance cao nhất (tỷ trọng) |
+| --- | --- |
+| RF | `avg_score` 0,0764; `code_module` 0,0677; `date_registration` 0,0609; `click_trend` 0,0543; `clicks_per_active_day` 0,0541 |
+| XGBoost | `n_assess_due` 0,1994; `code_module` 0,1930; `region` 0,1263; `avg_score` 0,0634; `n_assess_submitted` 0,0451 |
+
+RF dùng mức giảm impurity trung bình; XGBoost dùng gain mặc định của `feature_importances_` với tree booster. Các tỷ trọng được chuẩn hóa trong từng mô hình, **không so sánh trị số trực tiếp giữa RF và XGBoost**. Feature có importance cao không cho biết chiều tác động hoặc quan hệ nhân quả. Feature liên quan nhau, số mức danh mục và cách chia cây có thể làm thứ hạng thay đổi.
+
 ## Benchmark
 
 Đo riêng bốn giai đoạn: đọc và xác thực bảng 27.553 dòng; transform train/dev; fit trên 19.264 dòng train; suy luận trên 4.131 dòng dev. Mỗi giai đoạn đo ba lượt, báo trung vị cùng min/max trong CSV. Phần suy luận lặp 20 batch mỗi lượt để thời gian và CPU đủ đo. BLAS/OpenMP được giới hạn một luồng khi benchmark. RAM là **RSS đỉnh của cả tiến trình** lấy mẫu mỗi 5 ms, không phải RAM tăng thêm riêng của mô hình; CPU là phần trăm một lõi tính từ CPU time/wall time.
 
-| Mô hình | Fit trung vị (s) | Fit min–max (s) | Fit throughput (dòng/s) | Infer 20 batch (s) | Infer throughput (dòng/s) | RSS đỉnh fit trung vị (MiB) |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| RF | 4,065 | 4,060–4,097 | 4.739 | 1,638 | 50.435 | 273,3 |
-| XGBoost | 0,391 | 0,390–0,393 | 49.222 | 0,122 | 676.157 | 293,1 |
+Bảng dưới đây ghi **trung vị [min–max]** của ba lượt đo cho mỗi cấu hình đã khóa. Predict là tổng 20 batch dev mỗi lượt; throughput tính trên tổng 82.620 dự đoán.
 
-Thời gian đo là của máy chạy hiện tại và phụ thuộc môi trường, tải hệ thống, phiên bản thư viện. XGBoost nhanh hơn trong phép đo này nhưng sử dụng mô hình và thuật toán khác RF; không suy rộng tỉ lệ tốc độ sang phần cứng khác. CSV lưu cả thời gian, CPU, RAM và throughput cho từng lượt.
+| Mô hình | Cấu hình | Giai đoạn | Thời gian (s) | CPU (% một lõi) | RSS đỉnh (MiB) | Throughput (dòng/s) |
+| --- | --- | --- | ---: | ---: | ---: | ---: |
+| RF | `rf_leaf5_200` | Fit | 4,065 [4,060–4,097] | 101,3 [101,3–101,5] | 273,3 [259,2–278,8] | 4.739 [4.702–4.745] |
+| RF | `rf_leaf5_200` | Predict | 1,638 [1,616–1,645] | 101,3 [100,9–101,5] | 273,3 [256,4–278,9] | 50.435 [50.219–51.124] |
+| XGBoost | `xgb_depth4_200` | Fit | 0,391 [0,390–0,393] | 101,8 [100,1–102,2] | 293,1 [268,4–294,5] | 49.222 [49.048–49.450] |
+| XGBoost | `xgb_depth4_200` | Predict | 0,122 [0,122–0,124] | 104,6 [98,2–106,7] | 293,2 [268,4–294,5] | 676.157 [664.517–678.130] |
+
+Thời gian đo là của máy chạy hiện tại và phụ thuộc môi trường, tải hệ thống, phiên bản thư viện. XGBoost nhanh hơn trong phép đo này nhưng sử dụng mô hình và thuật toán khác RF; không suy rộng tỉ lệ tốc độ sang phần cứng khác. CSV lưu cả thời gian, CPU, RAM và throughput cho từng lượt; bảng tổng hợp chứa trung vị, min và max của cả bốn chỉ số. Hai cấu hình được nối với hash của `rf_xgb_model_lock.json`. Không dùng kết quả benchmark hoặc kiểm tra thời gian để chỉnh cấu hình hay ngưỡng.
+
+## Bàn giao và khả năng chạy lại
+
+`notebooks/04_random_forest_xgboost.ipynb` chạy lại phần train/dev từ bốn tệp trong `dataset/`; phần test chỉ đọc CSV đã khóa. `requirements-modeling.txt` ghi phiên bản môi trường chạy, còn `results/rf_xgb_run_manifest.json` ghi phiên bản thư viện, cấu hình, cỡ tập, hash dữ liệu/artifact/kết quả và thông tin phần cứng cơ bản. Môi trường chạy này dùng Python 3.14.8, scikit-learn 1.9.1 và XGBoost 3.4.1. Artifact preprocessor được lưu bằng scikit-learn 1.9.0, nên cần kiểm tra tương thích khi thay phiên bản. README mô tả nhãn dương đúng là Withdrawn sau ngày 28; Fail nằm trong lớp 0.
 
 ## Giới hạn và phạm vi kết luận
 

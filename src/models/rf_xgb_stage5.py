@@ -166,8 +166,58 @@ def _measure(fn):
     return value, elapsed, cpu_seconds / elapsed * 100, peak[0] / 1024**2
 
 
+def summarize_benchmark_runs(runs, lock, lock_hash):
+    """Validate stored measurements and aggregate without fitting models again."""
+    runs = runs.copy()
+    families = set(lock["models"])
+    stages = {"read_validate", "transform", "fit", "infer"}
+    if set(runs.model) != families or set(runs.stage) != stages:
+        raise ValueError("Benchmark thiếu mô hình hoặc stage")
+    if runs.duplicated(["model", "stage", "repeat"]).any():
+        raise ValueError("Benchmark trùng lượt đo")
+    if not runs.lock_sha256.eq(lock_hash).all():
+        raise ValueError("Benchmark không khớp cấu hình khóa")
+    if (runs.wall_seconds <= 0).any() or (runs.rows <= 0).any():
+        raise ValueError("Thời gian hoặc số dòng benchmark không hợp lệ")
+    count = runs.groupby(["model", "stage"]).repeat.nunique()
+    if len(count) != len(families) * len(stages) or count.lt(3).any():
+        raise ValueError("Mỗi stage của mỗi mô hình cần ít nhất ba lượt")
+    config_by_model = {name: item["config"] for name, item in lock["models"].items()}
+    branch_by_model = {name: item["branch"] for name, item in lock["models"].items()}
+    for field, mapping in (("config", config_by_model), ("branch", branch_by_model)):
+        expected = runs.model.map(mapping)
+        if field in runs and not runs[field].eq(expected).all():
+            raise ValueError(f"{field} benchmark khác bản khóa")
+        runs[field] = expected
+    runs["throughput_rows_per_second"] = runs.rows / runs.wall_seconds
+    summary = runs.groupby(["model", "config", "branch", "stage"], as_index=False).agg(
+        runs=("repeat", "nunique"), rows=("rows", "first"), calls=("calls", "first"),
+        wall_median_s=("wall_seconds", "median"), wall_min_s=("wall_seconds", "min"),
+        wall_max_s=("wall_seconds", "max"),
+        cpu_median_percent=("cpu_percent", "median"),
+        cpu_min_percent=("cpu_percent", "min"), cpu_max_percent=("cpu_percent", "max"),
+        peak_rss_median_mb=("peak_rss_mb", "median"),
+        peak_rss_min_mb=("peak_rss_mb", "min"), peak_rss_max_mb=("peak_rss_mb", "max"),
+        throughput_median_rows_s=("throughput_rows_per_second", "median"),
+        throughput_min_rows_s=("throughput_rows_per_second", "min"),
+        throughput_max_rows_s=("throughput_rows_per_second", "max"),
+    )
+    return runs, summary
+
+
+def refresh_benchmark_summary(dataset_dir, results_dir):
+    """Add config and complete min/max statistics to already measured runs."""
+    results_dir = Path(results_dir)
+    lock, lock_hash = verify_lock(dataset_dir, results_dir)
+    runs = pd.read_csv(results_dir / "rf_xgb_benchmark_runs.csv")
+    runs, summary = summarize_benchmark_runs(runs, lock, lock_hash)
+    runs.to_csv(results_dir / "rf_xgb_benchmark_runs.csv", index=False)
+    summary.to_csv(results_dir / "rf_xgb_benchmark_summary.csv", index=False)
+    return runs, summary
+
+
 def run_benchmark(dataset_dir, results_dir, repeats=3):
-    """Benchmark each locked model on train/dev; do not inspect test labels."""
+    """Benchmark fit/infer on train/dev; read stage validates the full table."""
     dataset_dir, results_dir = Path(dataset_dir), Path(results_dir)
     lock, lock_hash = verify_lock(dataset_dir, results_dir)
     if repeats < 3:
@@ -204,15 +254,7 @@ def run_benchmark(dataset_dir, results_dir, repeats=3):
     runs["calls"] = np.where(runs.stage == "infer", 20, 1)
     runs["throughput_rows_per_second"] = runs.rows / runs.wall_seconds
     runs["lock_sha256"] = lock_hash
-    summary = runs.groupby(["model", "stage"], as_index=False).agg(
-        runs=("repeat", "nunique"), rows=("rows", "first"), calls=("calls", "first"),
-        wall_median_s=("wall_seconds", "median"), wall_min_s=("wall_seconds", "min"),
-        wall_max_s=("wall_seconds", "max"),
-        cpu_median_percent=("cpu_percent", "median"),
-        peak_rss_median_mb=("peak_rss_mb", "median"),
-        peak_rss_min_mb=("peak_rss_mb", "min"), peak_rss_max_mb=("peak_rss_mb", "max"),
-        throughput_median_rows_s=("throughput_rows_per_second", "median"),
-    )
+    runs, summary = summarize_benchmark_runs(runs, lock, lock_hash)
     results_dir.mkdir(parents=True, exist_ok=True)
     runs.to_csv(results_dir / "rf_xgb_benchmark_runs.csv", index=False)
     summary.to_csv(results_dir / "rf_xgb_benchmark_summary.csv", index=False)

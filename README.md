@@ -1,41 +1,37 @@
-# Big Data Analytics OULAD
+# OULAD · dự báo rút lui sau ngày 28
 
-Repository for the V4 OULAD project. The planned work has two implementation branches:
+Dự án dùng dữ liệu OULAD để dự báo ở đầu ngày 28 cho **lượt đăng ký còn học tại thời điểm đó**. Feature chỉ lấy thông tin từ ngày 0–27. Nhãn `label_withdrawn=1` nghĩa là sinh viên **rút lui sau ngày 28**; lớp `0` gồm Pass, Fail và Distinction. Fail không thuộc lớp dương. Đơn vị quan sát là `(id_student, code_module, code_presentation)`; train/dev/test được tách theo `id_student`.
 
-- Supervised learning with Logistic Regression and Random Forest to predict course non-completion using information available at the start of day 28.
-- Unsupervised learning with K-Means to cluster learner behaviour.
-- Pandas/scikit-learn and PySpark DataFrame/MLlib implementations share the `feature_28d` definition and split manifest.
+## Chạy notebook RF/XGBoost từ bộ dữ liệu bàn giao
 
-Development and execution are planned for local Ubuntu with Conda and JupyterLab.
+Đặt bốn tệp sau vào thư mục `dataset/` ở gốc repository (thư mục này được Git bỏ qua):
 
-## Repository layout
+```text
+dataset/
+├── feature_28d.csv
+├── split.csv
+├── preprocessor.joblib
+└── pca.joblib
+```
 
-The repository is currently at the setup stage. Add directories when their first maintained file is ready; do not add empty placeholder code files.
+Môi trường đã dùng để tạo kết quả: Python 3.14.8, pandas 3.0.6, scikit-learn 1.9.1, XGBoost 3.4.1; phiên bản đầy đủ và SHA-256 của dữ liệu nằm trong `results/rf_xgb_run_manifest.json`. Cài các gói Python từ `requirements-modeling.txt`, rồi mở `notebooks/04_random_forest_xgboost.ipynb` trong Jupyter hoặc VS Code. Ví dụ với Conda:
 
-| Path | Planned contents |
-| --- | --- |
-| `config/` | Agreed modeling rules and `feature_28d` schema |
-| `data/raw/` | Local source data; excluded from Git |
-| `data/processed/` | Locally generated feature data and split manifest, subject to data review |
-| `notebooks/pandas/` | Pandas and scikit-learn analysis |
-| `notebooks/pyspark/` | PySpark DataFrame and MLlib analysis |
-| `src/data/` | Reusable ETL and feature preparation code |
-| `src/modeling/` | Supervised model code |
-| `src/clustering/` | K-Means code |
-| `results/models/`, `results/clustering/`, `results/benchmark/` | Generated models, clustering output, and benchmark output |
-| `reports/` | Project and weekly reports |
-| `tests/` | Data and modeling checks, when implemented |
+```bash
+conda create -n oulad-model python=3.14
+conda activate oulad-model
+python -m pip install -r requirements-modeling.txt
+```
 
-## Local data and outputs
+Notebook chạy baseline, tạo 5 fold trong train, so sánh cấu hình bằng CV, so sánh gốc/PCA và ablation trên dev, rồi hiển thị kết quả test/benchmark đã khóa. **Cell test chỉ đọc bảng kết quả**; mã trong `src/models/rf_xgb_stage5.py` từ chối đánh giá test lần hai. `preprocessor.joblib` được lưu bằng scikit-learn 1.9.0; notebook chỉ ẩn cảnh báo lệch phiên bản khi đọc artifact. Nếu dùng phiên bản thư viện khác, cần kiểm tra lại tính tương thích thay vì coi kết quả là giống hệt.
 
-Keep OULAD source files and personal Google Form responses on the local machine. Git ignores these data locations, local environments, caches, and generated model files. Scripts, notebooks, configuration, metrics, and reports can be versioned.
+## Kết quả và cấu hình
 
-The agreed week 1 documents have not yet been added. Place the modeling rules and feature schema under `config/`, and the week 1 report under `reports/` when those source files are available. Their contents must remain the authoritative agreed definitions.
+- `results/rf_xgb_model_lock.json`: cấu hình, nhánh feature, ngưỡng và hash đầu vào được chốt trước test.
+- `results/lr_model_lock_current.json`: cấu hình LR chọn trên train/dev của cùng dataset.
+- `results/model_comparison_test.csv`: precision, recall, F1, ROC-AUC, PR-AUC và confusion matrix của LR, RF, XGBoost trên cùng test.
+- `results/rf_xgb_temporal_2013_to_2014.csv`: phép kiểm tra năm riêng, không dùng để tinh chỉnh.
+- `results/rf_xgb_benchmark_runs.csv` và `results/rf_xgb_benchmark_summary.csv`: thời gian, CPU, RAM, throughput của ba lượt mỗi giai đoạn.
+- `results/rf_xgb_locked_importance_raw.csv`: importance của mô hình đã khóa, gộp one-hot về cột gốc; bảng chi tiết ở `results/rf_xgb_locked_importance_encoded.csv`.
+- `docs/report/rf_xgb_methods_results.md` và `docs/slides/rf_xgb_slides.md`: phần báo cáo và nội dung slide RF/XGBoost.
 
-## RF/XGBoost: thực nghiệm đã khóa
-
-Bộ dữ liệu thực nghiệm đặt trong `dataset/`: `feature_28d.csv`, `split.csv`, `preprocessor.joblib`, `pca.joblib`. Thư mục này được Git bỏ qua. Notebook chính là `notebooks/04_random_forest_xgboost.ipynb`; chạy từ gốc repository hoặc thư mục `notebooks/` bằng môi trường có Pandas, NumPy, scikit-learn, XGBoost, joblib, PyYAML, psutil, threadpoolctl và Jupyter.
-
-Quy trình RF/XGBoost: tạo 5 fold theo sinh viên trong train (`src/models/group_cv.py`), so sánh 6 cấu hình bằng CV (`src/models/cv_rf_xgb.py`), so sánh gốc/PCA và ablation trên dev rồi chọn ngưỡng (`src/models/rf_xgb_stage4.py`). File `results/rf_xgb_model_lock.json` lưu cấu hình và hash đầu vào. Đánh giá test một lần, kiểm tra 2013→2014 và benchmark được thực hiện bằng `src/models/rf_xgb_stage5.py`; hàm test từ chối chạy lại nếu kết quả đã tồn tại. Notebook chỉ đọc các bảng test đã có.
-
-Kết quả cuối và giải thích nằm ở `docs/report/rf_xgb_methods_results.md`; nội dung slide ở `docs/slides/rf_xgb_slides.md`. Bảng benchmark là số đo của máy chạy thực nghiệm, không phải cam kết thời gian trên máy khác.
+Số đo benchmark thuộc máy và môi trường đã ghi trong manifest; RAM là RSS của cả tiến trình. Feature importance là chỉ số nội bộ của từng mô hình, không chứng minh tác động nhân quả.
