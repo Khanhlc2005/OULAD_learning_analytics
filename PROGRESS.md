@@ -10,6 +10,8 @@ Cập nhật: 25/11/2026.
 - Bước 4: Xác thực `pca.joblib` (22 cột số đúng thứ tự, 11 thành phần, 95,43% phương sai), so sánh gốc/PCA trên dev và ablation riêng với ba trường hợp: đầy đủ cột gốc, chỉ nhân khẩu học, chỉ hành vi. Cả hai mô hình chọn nhánh gốc; ngưỡng F1 trên dev: RF 0,46, XGBoost 0,49. Đã ghi khóa cấu hình và bản nháp phương pháp/kết quả trước khi đánh giá test.
 - Bước 5: Xác minh hash và đánh giá test chính một lần trên 4.158 lượt (RF F1 0,4178, PR-AUC 0,3705; XGBoost F1 0,4208, PR-AUC 0,3766). Kiểm tra phụ 2013 train → 2014 test, fit lại preprocessor trên 2013; benchmark RF/XGBoost mỗi stage ba lượt với thời gian, CPU, RSS và throughput. Hoàn thiện notebook, báo cáo, nội dung slide và hướng dẫn README.
 - Bước 6: Giữ nguyên kết quả test RF/XGBoost; chọn lại LR trên train/dev hiện tại (C=0,1, ngưỡng 0,55), khóa hash trước khi đánh giá LR test một lần. Đã lập bảng so sánh ba mô hình trên cùng 4.158 lượt test và cùng định nghĩa Withdrawn sau ngày 28. LR F1 0,4097, PR-AUC 0,3576.
+- Bước 7: Xác minh kết quả 2013 train → 2014 test đã chạy bằng đúng cấu hình/nhánh/ngưỡng khóa. Kiểm tra 24 lượt benchmark (RF/XGBoost × 4 stage × 3 lượt), thêm tên cấu hình và min/max cho CPU, RSS, throughput vào bảng tổng hợp từ số đo đã lưu. Không chạy lại test hoặc phép kiểm tra năm; không dùng các kết quả này để chỉnh mô hình.
+- Bước 8: Tạo importance cho cấu hình đã khóa từ train, gộp one-hot theo cột gốc; hoàn thiện notebook, bảng kết quả, README, báo cáo/slide và manifest có hash cùng phiên bản thư viện. Kiểm tra chạy lại notebook từ bản sao sạch của repository và bốn tệp dataset.
 
 ## Tệp đầu ra bước 2
 
@@ -47,6 +49,21 @@ Cập nhật: 25/11/2026.
 - `results/lr_dev_c_grid_current.csv`, `results/lr_dev_thresholds_current.csv`, `results/lr_dev_selected_current.csv`, `results/lr_model_lock_current.json`: bằng chứng lựa chọn LR trước test.
 - `results/lr_test_metrics_current.csv`, `results/model_comparison_test.csv`: metric LR và bảng ba mô hình cùng test.
 - `docs/report/rf_xgb_methods_results.md`: bổ sung phương pháp và diễn giải so sánh cuối.
+
+## Tệp đầu ra bước 7
+
+- `results/rf_xgb_temporal_2013_to_2014.csv`: kết quả kiểm tra năm theo cấu hình khóa, giữ nguyên.
+- `results/rf_xgb_benchmark_runs.csv`: 24 lượt đo có tên cấu hình/nhánh.
+- `results/rf_xgb_benchmark_summary.csv`: trung vị và min/max cho thời gian, CPU, RSS, throughput.
+- `src/models/rf_xgb_stage5.py`: hàm xác minh và tổng hợp lại kết quả benchmark đã có mà không fit mô hình.
+- `docs/report/rf_xgb_methods_results.md`: diễn giải bảng thời gian và benchmark.
+
+## Tệp đầu ra bước 8
+
+- `src/models/rf_xgb_handoff.py`: importance train-only và manifest môi trường.
+- `results/rf_xgb_locked_importance_encoded.csv`, `results/rf_xgb_locked_importance_raw.csv`: importance 49 feature mã hóa và 33 cột gốc của mô hình khóa.
+- `results/rf_xgb_run_manifest.json`, `requirements-modeling.txt`: phiên bản, hash và phụ thuộc chạy lại.
+- `notebooks/04_random_forest_xgboost.ipynb`, `README.md`, `docs/report/rf_xgb_methods_results.md`, `docs/slides/rf_xgb_slides.md`: bàn giao notebook và tài liệu.
 
 ## Cần phối hợp với nhóm
 
