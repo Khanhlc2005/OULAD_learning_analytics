@@ -1,0 +1,2 @@
+model,config,branch,split,lock_sha256,n_train,n_test,n_features,test_positive_rate,threshold,precision,recall,f1,roc_auc,pr_auc,tn,fp,fn,tp
+logistic_regression,C=0.1,linear,test,1c273eac2cb8069a38b2e8875aa586172759b0a94e7ab2759f1916b63c19b7be,19264,4158,49,0.19023569023569023,0.55,0.34485738980121,0.504424778761062,0.40965092402464065,0.7002628696686851,0.357590643314925,2609,758,392,399

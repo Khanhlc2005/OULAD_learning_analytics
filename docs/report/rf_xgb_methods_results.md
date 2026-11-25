@@ -39,6 +39,20 @@ Với nhánh gốc, chọn ngưỡng tối đa hóa F1 trên dev từ 0,05 đế
 
 XGBoost phát hiện thêm 74 trường hợp dương (TP) so với RF nhưng tạo thêm 264 cảnh báo sai (FP). Chênh lệch F1 là 0,0030 và PR-AUC là 0,0061; không đủ cơ sở để khẳng định một mô hình tốt hơn ổn định trên tập dữ liệu khác.
 
+## Bước 6: so sánh LR, RF và XGBoost trên cùng test
+
+Kết quả LR lưu trước đây trong `results/model_metrics.csv` là dev của một lần chạy cũ và không tái hiện chính xác trên `dataset/` hiện tại. Vì vậy đã chọn lại LR **chỉ trên train/dev hiện tại** bằng đúng quy tắc trong `src/models/train_lr.py`: thử `C ∈ {0,01; 0,1; 1; 10}`, chọn F1 ở ngưỡng 0,5, rồi chọn ngưỡng F1 từ 0,1 đến 0,9 với bước 0,05. Kết quả chọn `C=0,1`, ngưỡng `0,55`; chúng được ghi cùng hash dữ liệu và preprocessor vào `results/lr_model_lock_current.json` trước khi đánh giá LR test. Không ghi đè file metric LR cũ.
+
+LR dùng cùng 33 cột gốc, cùng `feature_28d.csv` và `split.csv`, cùng nhãn `label_withdrawn=1` (Withdrawn sau ngày 28) và cùng hàm metric với RF/XGBoost. Nhánh `linear` của preprocessor cho LR và nhánh `tree` cho RF/XGBoost đều tạo 49 feature, nhưng giá trị số được biến đổi khác nhau theo loại mô hình. Cả ba fit trên 19.264 lượt train và đánh giá 4.158 lượt test, với tỷ lệ nhãn dương 19,02%:
+
+| Mô hình | Ngưỡng | Precision | Recall | F1 | ROC-AUC | PR-AUC | TN | FP | FN | TP |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| LR | 0,55 | 0,3449 | 0,5044 | 0,4097 | 0,7003 | 0,3576 | 2.609 | 758 | 392 | 399 |
+| RF | 0,46 | 0,3559 | 0,5057 | 0,4178 | 0,6960 | 0,3705 | 2.643 | 724 | 391 | 400 |
+| XGBoost | 0,49 | 0,3242 | 0,5992 | 0,4208 | 0,7060 | 0,3766 | 2.379 | 988 | 317 | 474 |
+
+XGBoost có recall và PR-AUC cao nhất trong ba mô hình, nhưng có nhiều FP nhất. RF có precision cao nhất và ít FP nhất. Chênh lệch F1 nhỏ; bảng chỉ là đánh giá trên một test split và không chứng minh thứ hạng ổn định ở quần thể khác. `results/model_comparison_test.csv` là bảng máy đọc được với đầy đủ tham số, ngưỡng và confusion matrix. Kết quả RF/XGBoost được lấy từ file test đã khóa trước đó, không chạy lại.
+
 ## Kiểm tra theo thời gian 2013→2014
 
 Đây là phép phân tích phụ được xác định trước khi xem test. Fit trên 8.332 lượt **train 2013**, đánh giá trên 2.380 lượt **test 2014**; sinh viên giữa hai phía không trùng. Preprocessor được fit lại chỉ trên 2013, không dùng artifact đã fit trên toàn train có dữ liệu 2014. Giữ nguyên cấu hình và ngưỡng đã khóa:
@@ -63,4 +77,4 @@ Thời gian đo là của máy chạy hiện tại và phụ thuộc môi trư�
 
 ## Giới hạn và phạm vi kết luận
 
-Kết quả chỉ phản ánh OULAD, cohort còn học ở đầu ngày 28, một cách chia train/dev/test theo sinh viên và các cấu hình đã thử. Việc chọn nhánh và ngưỡng trên dev có thể khiến dev lạc quan; test được dùng một lần cho đánh giá chính. Phép kiểm tra năm là phân tích phụ trên một tập con của test, không được dùng để sửa ngưỡng hoặc cấu hình. Chưa có test LR cùng hợp đồng feature/split trong repository để lập bảng so sánh cuối ba mô hình. PR-AUC và F1 chưa đủ để khẳng định mô hình phù hợp cho can thiệp thực tế; cần xem chi phí cảnh báo sai và quy trình hỗ trợ sinh viên.
+Kết quả chỉ phản ánh OULAD, cohort còn học ở đầu ngày 28, một cách chia train/dev/test theo sinh viên và các cấu hình đã thử. Việc chọn nhánh và ngưỡng trên dev có thể khiến dev lạc quan; test được dùng một lần cho đánh giá chính. Phép kiểm tra năm là phân tích phụ trên một tập con của test, không được dùng để sửa ngưỡng hoặc cấu hình. PR-AUC và F1 chưa đủ để khẳng định mô hình phù hợp cho can thiệp thực tế; cần xem chi phí cảnh báo sai và quy trình hỗ trợ sinh viên.
