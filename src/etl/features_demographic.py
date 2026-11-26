@@ -1,3 +1,4 @@
+
 from __future__ import annotations
 
 import re
@@ -18,6 +19,18 @@ REGIONS = [
     "Yorkshire Region",
 ]
 
+# Danh sách nhãn gốc hợp lệ (khớp config/columns.yaml). Dùng để kiểm tra, KHÔNG để đổi sang số.
+EDUCATION_LEVELS = [
+    "No Formal quals", "Lower Than A Level", "A Level or Equivalent",
+    "HE Qualification", "Post Graduate Qualification",
+]
+AGE_BANDS = ["0-35", "35-55", "55<="]
+IMD_BANDS = ["0-10%", "10-20", "20-30%", "30-40%", "40-50%", "50-60%",
+             "60-70%", "70-80%", "80-90%", "90-100%"]  # "10-20" gốc không có %
+DISABILITY_LEVELS = ["N", "Y"]
+MISSING_TOKENS = ["?", ""]
+
+# Chỉ dùng cho EDA (notebook tự đổi sang số); build_demographic_features không dùng.
 EDUCATION_ORDER = {
     "No Formal quals": 0,
     "Lower Than A Level": 1,
@@ -57,10 +70,11 @@ def _onehot(series: pd.Series, categories: list[str], prefix: str) -> pd.DataFra
 def _clean_category(series: pd.Series, categories: list[str], name: str) -> pd.Series:
     """Giữ nguyên nhãn chuỗi, chỉ bỏ khoảng trắng thừa; cảnh báo giá trị lạ."""
     s = series.astype("string").str.strip()
+    s = s.mask(s.isin(MISSING_TOKENS))  # "?" hoặc rỗng -> NaN (cờ thiếu do cột *_missing)
     unknown = sorted(set(s.dropna().unique()) - set(categories))
     if unknown:
         warnings.warn(f"{name}: giá trị lạ {unknown}; bổ sung danh sách nếu hợp lệ.")
-    return s.astype(object)
+    return s.astype(object).where(s.notna(), np.nan)  # thiếu là NaN chuẩn, không phải pd.NA
 
 
 def _ordinal(series: pd.Series, mapping: dict[str, int], name: str) -> pd.Series:
@@ -126,18 +140,18 @@ def build_demographic_features(
         out["gender"] = _clean_category(info["gender"], GENDERS, "gender")
         out["region"] = _clean_category(info["region"], REGIONS, "region")
 
-    # thứ tự
-    out["highest_education"] = _ordinal(info["highest_education"], EDUCATION_ORDER, "highest_education")
-    out["imd_band"] = _imd_to_ordinal(info["imd_band"])
+    # nhãn thứ tự: giữ NGUYÊN chuỗi gốc (pipeline.py mã hóa theo config/columns.yaml)
+    out["highest_education"] = _clean_category(info["highest_education"], EDUCATION_LEVELS, "highest_education")
+    out["imd_band"] = _clean_category(info["imd_band"], IMD_BANDS, "imd_band")
     out["imd_missing"] = out["imd_band"].isna().astype("int8")
-    out["age_band"] = _ordinal(info["age_band"], AGE_ORDER, "age_band")
+    out["age_band"] = _clean_category(info["age_band"], AGE_BANDS, "age_band")
 
     # số
     out["num_of_prev_attempts"] = pd.to_numeric(info["num_of_prev_attempts"], errors="coerce")
     out["studied_credits"] = pd.to_numeric(info["studied_credits"], errors="coerce")
 
-    # nhị phân
-    out["disability"] = _ordinal(info["disability"], DISABILITY_MAP, "disability")
+    # khuyết tật: giữ N/Y
+    out["disability"] = _clean_category(info["disability"], DISABILITY_LEVELS, "disability")
 
     # ngày đăng ký (âm là hợp lệ)
     out["date_registration"] = pd.to_numeric(info["date_registration"], errors="coerce")
@@ -178,10 +192,13 @@ def check_demographic_table(df: pd.DataFrame, expected_rows: int | None = None,
     if expected_rows is not None and len(df) != expected_rows:
         errors.append(f"Số dòng {len(df)} khác kỳ vọng {expected_rows}.")
 
-    ranges = {"highest_education": (0, 4), "imd_band": (0, 9), "age_band": (0, 2), "disability": (0, 1)}
-    for col, (lo, hi) in ranges.items():
-        if col in df and not df[col].dropna().between(lo, hi).all():
-            errors.append(f"{col} có giá trị ngoài [{lo}, {hi}].")
+    # nhãn chuỗi phải nằm trong danh sách nhãn gốc (khớp config/columns.yaml)
+    labels = {"highest_education": EDUCATION_LEVELS, "imd_band": IMD_BANDS,
+              "age_band": AGE_BANDS, "disability": DISABILITY_LEVELS}
+    for col, cats in labels.items():
+        if col in df and not df[col].dropna().isin(cats).all():
+            bad = sorted(set(df[col].dropna().astype(str)) - set(cats))
+            errors.append(f"{col} có nhãn ngoài danh sách: {bad}")
     if onehot:
         for prefix in ONEHOT_PREFIXES:
             cols = [c for c in df.columns if c.startswith(prefix + "_")
