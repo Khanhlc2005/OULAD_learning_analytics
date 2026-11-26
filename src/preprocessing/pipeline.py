@@ -9,6 +9,7 @@ Quy tắc: Fit CHỈ trên tập Train, sau đó transform cho Dev và Test.
 """
 
 import os
+import re
 import logging
 import joblib
 import yaml
@@ -79,6 +80,22 @@ COUNT_COLS = _COL_SPECS['count_cols']
 OTHER_NUM_COLS = _COL_SPECS['other_num_cols']
 FLAG_COLS = _COL_SPECS['flag_cols']
 
+_WEEK_COL_PATTERN = re.compile(r"^clicks_w(\d+)$")
+
+
+def resolve_count_cols(df: pd.DataFrame, base_count_cols: list = None) -> list:
+    """Tự động lấy đúng danh sách cột đếm và các cột clicks_w* thực tế có trong df."""
+    base = COUNT_COLS if base_count_cols is None else base_count_cols
+    non_week_cols = [
+        c for c in base
+        if not _WEEK_COL_PATTERN.match(c) and c in df.columns
+    ]
+    week_cols = sorted(
+        [c for c in df.columns if _WEEK_COL_PATTERN.match(c)],
+        key=lambda c: int(_WEEK_COL_PATTERN.match(c).group(1)),
+    )
+    return non_week_cols + week_cols
+
 
 # -----------------------------------------------------------------------------
 # 2. HÀM LÀM SẠCH TOKEN THIẾU, FIT THAM SỐ VÀ ĐIỀN KHUYẾT (IMPUTATION)
@@ -133,9 +150,10 @@ def apply_imputation(df: pd.DataFrame, impute_dict: dict) -> pd.DataFrame:
         if col in df_out.columns:
             df_out[col] = df_out[col].fillna(fill_val)
 
-    # Cac bien dem, ty le va co con lai dien 0
+    # Cac bien dem, ty le va co con lai dien 0 (tu dong gom dung clicks_w* cua tung cua so)
+    active_count_cols = resolve_count_cols(df_out)
     zero_fill_cols = [
-        c for c in (COUNT_COLS + OTHER_NUM_COLS + FLAG_COLS)
+        c for c in (active_count_cols + OTHER_NUM_COLS + FLAG_COLS)
         if c not in special_day_fills
     ]
     for col in zero_fill_cols:
@@ -148,8 +166,10 @@ def apply_imputation(df: pd.DataFrame, impute_dict: dict) -> pd.DataFrame:
 # -----------------------------------------------------------------------------
 # 3. HÀM TẠO PIPELINE / COLUMNTRANSFORMER VÀ ESTIMATOR CHUẨN SCIKIT-LEARN
 # -----------------------------------------------------------------------------
-def build_preprocessors():
+def build_preprocessors(count_cols: list = None):
     """Tạo cấu trúc ColumnTransformer cho cả 2 nhánh mô hình."""
+    active_count_cols = COUNT_COLS if count_cols is None else count_cols
+
     num_log_scaler = Pipeline([
         ('log1p', FunctionTransformer(np.log1p, validate=True, feature_names_out='one-to-one')),
         ('scaler', StandardScaler())
@@ -164,7 +184,7 @@ def build_preprocessors():
         ('ord', OrdinalEncoder(categories=ORDINAL_CATEGORIES,
                                handle_unknown='use_encoded_value', unknown_value=-1), ORDINAL_COLS),
         ('nom', OneHotEncoder(drop='first', sparse_output=False, handle_unknown='ignore'), NOMINAL_COLS),
-        ('cnt_scaled', num_log_scaler, COUNT_COLS),
+        ('cnt_scaled', num_log_scaler, active_count_cols),
         ('num_scaled', num_standard_scaler, NUMERIC_STATIC_COLS + OTHER_NUM_COLS),
         ('flags', 'passthrough', FLAG_COLS)
     ])
@@ -173,7 +193,7 @@ def build_preprocessors():
         ('ord', OrdinalEncoder(categories=ORDINAL_CATEGORIES,
                                handle_unknown='use_encoded_value', unknown_value=-1), ORDINAL_COLS),
         ('nom', OneHotEncoder(drop='first', sparse_output=False, handle_unknown='ignore'), NOMINAL_COLS),
-        ('num_raw', 'passthrough', COUNT_COLS + NUMERIC_STATIC_COLS + OTHER_NUM_COLS),
+        ('num_raw', 'passthrough', active_count_cols + NUMERIC_STATIC_COLS + OTHER_NUM_COLS),
         ('flags', 'passthrough', FLAG_COLS)
     ])
 
@@ -191,12 +211,14 @@ class OULADPreprocessor(BaseEstimator, TransformerMixin):
             raise ValueError("model_type phải là 'linear' hoặc 'tree'")
         self.model_type = model_type
         self.impute_values_ = {}
+        self.count_cols_ = []
         self.transformer_ = None
 
     def fit(self, X: pd.DataFrame, y=None):
         self.impute_values_ = get_impute_values(X)
         X_imp = apply_imputation(X, self.impute_values_)
-        prep_linear, prep_tree = build_preprocessors()
+        self.count_cols_ = resolve_count_cols(X_imp)
+        prep_linear, prep_tree = build_preprocessors(count_cols=self.count_cols_)
         self.transformer_ = prep_linear if self.model_type == 'linear' else prep_tree
         self.transformer_.fit(X_imp)
         return self

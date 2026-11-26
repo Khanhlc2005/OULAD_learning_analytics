@@ -9,11 +9,6 @@ import os
 from pathlib import Path
 import yaml
 import pandas as pd
-from src.etl.load_raw import load_raw_tables
-from src.etl.cohort_labels import build_cohort_and_labels
-from src.etl.features_vle import build_vle_features, VLE_FEATURE_COLS
-from src.etl.features_assessment import build_assessment_features, ASSESS_FEATURE_COLS
-from src.etl.make_split import make_split
 
 from config.config import (
     COLUMNS_YAML,
@@ -117,14 +112,22 @@ def export_feature_dictionary(
     return dict_df
 
 
-def build_feature_table(cutoff_day: int = CUTOFF_DAY, save_outputs: bool = True) -> pd.DataFrame:
+def build_feature_table(
+    cutoff_day: int = CUTOFF_DAY,
+    cohort_cutoff: int = None,
+    split_path: Path = None,
+    output_dir: Path = None,
+    save_outputs: bool = True,
+) -> pd.DataFrame:
     """Chay tron bo ETL cho moc cutoff_day va tra ve bang dac trung hoan chinh."""
     tables = load_raw_tables()
+
+    effective_cohort_cutoff = cohort_cutoff if cohort_cutoff is not None else cutoff_day
 
     cohort_df, excluded_df = build_cohort_and_labels(
         tables["studentInfo"],
         tables["studentRegistration"],
-        cutoff_day=cutoff_day,
+        cutoff_day=effective_cohort_cutoff,
     )
 
     cohort_df = build_vle_features(
@@ -145,8 +148,16 @@ def build_feature_table(cutoff_day: int = CUTOFF_DAY, save_outputs: bool = True)
     cohort_df["imd_missing"] = cohort_df["imd_band"].isna().astype("int8")
     cohort_df["date_registration_missing"] = cohort_df["date_registration"].isna().astype("int8")
 
-    # Tao bang split theo id_student va ghep vao bang dac trung
-    split_df = make_split(cohort_df, ratios=SPLIT_RATIOS, seed=RANDOM_STATE)
+    # Dung chung file split neu da co, nguoc lai tao moi theo id_student
+    if split_path is not None and Path(split_path).exists():
+        split_df = pd.read_csv(split_path)
+    else:
+        split_df = make_split(
+            cohort_df,
+            ratios=SPLIT_RATIOS,
+            seed=RANDOM_STATE,
+            output_path=split_path,
+        )
     full_df = pd.merge(cohort_df, split_df, on="id_student", how="left")
 
     # Loai bo cot ro ri neu con ton tai
@@ -160,18 +171,23 @@ def build_feature_table(cutoff_day: int = CUTOFF_DAY, save_outputs: bool = True)
     full_df = full_df[available_ordered + extra_cols]
 
     if save_outputs:
-        out_dir = Path(PROCESSED_DATA_DIR)
+        out_dir = Path(output_dir) if output_dir else Path(PROCESSED_DATA_DIR)
         out_dir.mkdir(parents=True, exist_ok=True)
 
-        if cutoff_day == CUTOFF_DAY:
+        if output_dir is not None:
+            csv_path = out_dir / f"feature_{cutoff_day}d.csv"
+            parquet_path = out_dir / f"feature_{cutoff_day}d.parquet"
+            out_split_path = Path(split_path) if split_path else (out_dir / "split.csv")
+            excluded_path = out_dir / f"excluded_early_withdrawn_{effective_cohort_cutoff}d.csv"
+        elif cutoff_day == CUTOFF_DAY:
             csv_path = Path(FEATURE_PATH)
             parquet_path = csv_path.with_suffix(".parquet")
-            split_path = Path(SPLIT_PATH)
+            out_split_path = Path(split_path) if split_path else Path(SPLIT_PATH)
             excluded_path = Path(EXCLUDED_PATH)
         else:
             csv_path = out_dir / f"feature_{cutoff_day}d.csv"
             parquet_path = out_dir / f"feature_{cutoff_day}d.parquet"
-            split_path = out_dir / f"split_{cutoff_day}d.csv"
+            out_split_path = Path(split_path) if split_path else (out_dir / f"split_{cutoff_day}d.csv")
             excluded_path = out_dir / f"excluded_early_withdrawn_{cutoff_day}d.csv"
 
         full_df.to_csv(csv_path, index=False)
@@ -180,14 +196,14 @@ def build_feature_table(cutoff_day: int = CUTOFF_DAY, save_outputs: bool = True)
         except Exception:
             pass
 
-        split_df.to_csv(split_path, index=False)
+        split_df.to_csv(out_split_path, index=False)
 
         excl_clean = excluded_df.drop(
             columns=[c for c in ["label_withdrawn"] if c in excluded_df.columns]
         )
         excl_clean.to_csv(excluded_path, index=False)
 
-        if cutoff_day == CUTOFF_DAY:
+        if cutoff_day == CUTOFF_DAY and output_dir is None:
             export_feature_dictionary(list(full_df.columns))
 
         print(f"[OK] Da xuat {csv_path} ({full_df.shape[0]:,} dong x {full_df.shape[1]} cot).")
@@ -201,10 +217,34 @@ def main():
         "--cutoff",
         type=int,
         default=CUTOFF_DAY,
-        help="Moc ngay cat du lieu (mac dinh lay tu config.CUTOFF_DAY).",
+        help="Moc ngay cat du lieu dac trung (mac dinh lay tu config.CUTOFF_DAY).",
+    )
+    parser.add_argument(
+        "--cohort-cutoff",
+        type=int,
+        default=None,
+        help="Moc ngay loc cohort co dinh (vi du 56 khi chay do nhay cua so).",
+    )
+    parser.add_argument(
+        "--split-path",
+        type=str,
+        default=None,
+        help="Duong dan file split.csv dung chung (neu da co se doc lai, chua co se tao moi).",
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=str,
+        default=None,
+        help="Thu muc luu dau ra rieng (tranh ghi de len data/processed/feature_28d.csv).",
     )
     args = parser.parse_args()
-    build_feature_table(cutoff_day=args.cutoff, save_outputs=True)
+    build_feature_table(
+        cutoff_day=args.cutoff,
+        cohort_cutoff=args.cohort_cutoff,
+        split_path=Path(args.split_path) if args.split_path else None,
+        output_dir=Path(args.output_dir) if args.output_dir else None,
+        save_outputs=True,
+    )
 
 
 if __name__ == "__main__":
