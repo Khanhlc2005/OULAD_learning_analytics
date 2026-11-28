@@ -23,8 +23,8 @@ Số ô '?' thô theo bảng: assessments: 11; vle: 10,486; studentInfo: 1,111; 
 
 | Vấn đề | Bảng | Số lượng | Tỉ lệ | Đề xuất xử lý |
 |---|---|---|---|---|
-| Click có ngày âm (hoạt động trước ngày bắt đầu khóa) | studentVle | 688,988 | 6.47% | Loại khỏi cửa sổ feature (chỉ giữ 0 <= date < 28); cần Trường xác nhận. |
-| Click từ ngày 28 trở đi (ngoài cửa sổ dự đoán) | studentVle | 7,853,969 | 73.71% | Không phải lỗi; ETL phải lọc bỏ để tránh rò rỉ thời gian. Dùng tham số cutoff_day. |
+| Click có ngày âm (hoạt động trước ngày bắt đầu khóa; tỉ lệ theo số dòng) | studentVle | 688,988 | 6.47% | Loại khỏi cửa sổ feature (chỉ giữ 0 <= date < 28); cần Trường xác nhận. |
+| Click từ ngày 28 trở đi (ngoài cửa sổ dự đoán; tỉ lệ theo số dòng) | studentVle | 7,853,969 | 73.71% | Không phải lỗi; ETL phải lọc bỏ để tránh rò rỉ thời gian. Dùng tham số cutoff_day. |
 | sum_click cực lớn (> p99.9 = 88, max = 6977) | studentVle | 10,607 | 0.10% | Giữ nguyên; xử lý lệch phải bằng log1p ở EDA (biểu đồ 8), không cắt dữ liệu. |
 | date_registration thiếu | studentRegistration | 45 | 0.14% | Điền median TÍNH TRÊN TRAIN + cờ date_registration_missing (làm ở pipeline của Trường). |
 | date_registration âm | studentRegistration | 32,312 | 99.14% | Hợp lệ (đăng ký trước ngày bắt đầu); giữ nguyên làm feature số. |
@@ -32,10 +32,10 @@ Số ô '?' thô theo bảng: assessments: 11; vle: 10,486; studentInfo: 1,111; 
 | Rút lui trước ngày 28 (ngoài cohort) | studentRegistration | 5,040 | 15.46% | Loại khỏi cohort, lưu data/processed/excluded_early_withdrawn.csv và thống kê riêng. |
 | date_unregistration âm (rút trước ngày bắt đầu) | studentRegistration | 2,678 | 8.22% | Thuộc nhóm ngoài cohort ở trên; ghi nhận để giải thích biểu đồ rút lui theo ngày. |
 | imd_band thiếu | studentInfo | 1,111 | 3.41% | Điền mode TÍNH TRÊN TRAIN + cờ imd_missing (pipeline của Trường). |
-| imd_band: nhãn dải không đồng nhất (một số không có dấu '%') | studentInfo | 3,516 | 10.79% | Mã hóa theo số đầu của dải // 10 (0-9) thay vì map theo chuỗi; đã làm trong features_demographic.py. |
+| imd_band: nhãn dải không đồng nhất (một số không có dấu '%') | studentInfo | 3,516 | 10.79% | Giữ nguyên nhãn gốc (kể cả '10-20' không có %), không đổi sang số; Trường mã hóa theo config/columns.yaml trong pipeline.py. |
 | Bài Exam không có ngày | assessments | 11 | 5.34% | Bỏ toàn bộ bài Exam khỏi feature (ngoài cửa sổ dự đoán). |
 | Bài nộp is_banked = 1 (điểm chuyển từ lần học trước) | studentAssessment | 1,909 | 1.10% | Bỏ khỏi feature (Trường đã chốt). |
-| score thiếu | studentAssessment | 173 | 0.10% | Bỏ bài thiếu điểm khi tính avg_score; nếu không còn bài nào thì avg_score = 0 + no_assess_flag. |
+| score thiếu | studentAssessment | 173 | 0.10% | ETL hiện điền score thiếu = 0 và vẫn tính vào avg_score (coi như 0 điểm, kéo điểm trung bình xuống). Đề xuất: bỏ bài thiếu điểm khỏi avg_score và weighted_score (tính trên bài có điểm); nếu không còn bài nào thì avg_score = 0 + no_assess_flag. Cần Trường xác nhận trước khi sửa ETL. |
 | date_submitted âm (nộp trước ngày bắt đầu) | studentAssessment | 2,057 | 1.18% | Hợp lệ (nộp trước ngày bắt đầu); vẫn tính là nộp trước ngày 28; báo Trường để thống nhất. |
 | vle.week_from / week_to thiếu | vle | 5,243 | 82.39% | Không dùng hai cột này làm feature; không cần xử lý. |
 | Dòng trùng hoàn toàn (cùng sinh viên, trang, ngày, sum_click) | studentVle | 787,170 | 7.39% | CHƯA khử trùng: bảng không có giờ nên đây có thể là nhiều phiên hợp lệ trong cùng một ngày; khử trùng sẽ làm tổng click bị thiếu. Trường quyết định; mặc định giữ nguyên và cộng dồn. |
@@ -50,6 +50,14 @@ Số ô '?' thô theo bảng: assessments: 11; vle: 10,486; studentInfo: 1,111; 
 - Ghép studentInfo với studentRegistration bằng đủ 3 khóa: 32,593 dòng (không tăng so với 32,593).
 - Ghép chỉ bằng `id_student`: 40,801 dòng, tức tăng ngoài ý muốn. Luôn ghép đủ 3 khóa.
 
-## 5. Feature nhân khẩu học
+## 5. Cần xác nhận
 
-`src/etl/features_demographic.py` đã chạy thử trên dữ liệu thật: 32,593 dòng, 11 cột feature, đạt.
+1. Click có `date < 0` trong studentVle: loại khỏi cửa sổ, chỉ giữ 0 <= date < 28 (đã chốt).
+2. `imd_band` và `date_registration`: chỉ giữ nguyên giá trị và tạo cờ thiếu; Trường điền mode/median trên train trong `pipeline.py`.
+3. One-hot của `code_module`, `gender`, `region` do `pipeline.py` của Trường làm (OneHotEncoder fit trên train, danh sách cột cố định cho cả ba tập); `features_demographic.py` không tự one-hot. Hàm cũng không đổi chữ thành số: `gender`, `region`, `highest_education`, `imd_band`, `age_band`, `disability` giữ nguyên chuỗi gốc (`imd_band` giữ cả nhãn "10-20" không có %), pipeline mã hóa theo `config/columns.yaml`.
+4. Bài thiếu `score` (173 dòng, 0.10% bài nộp): ETL hiện điền 0 và vẫn tính vào `avg_score`. Đề xuất của Đạt: bỏ bài thiếu điểm khỏi `avg_score` và `weighted_score`; nếu không còn bài nào thì `avg_score` = 0 kèm `no_assess_flag`. Cần Trường chọn: bỏ bài thiếu điểm (đề xuất) hay giữ điền 0.
+5. Dòng trùng hoàn toàn trong studentVle: giữ và cộng dồn `sum_click`, hay khử trùng?
+
+## 6. Feature nhân khẩu học
+
+`src/etl/features_demographic.py` đã chạy thử trên dữ liệu thật: 32,593 dòng, 11 cột feature (11 cột, không one-hot, không đổi chữ thành số), đạt `check_demographic_table` (nhãn nằm trong danh sách nhãn gốc).

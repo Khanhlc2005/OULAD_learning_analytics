@@ -1,0 +1,29 @@
+﻿muc,ket_qua,chi_tiet
+[14d] khóa lượt đăng ký không trùng,ĐẠT,26.532 dòng
+[14d] không có cột final_result / date_unregistration,ĐẠT,
+[14d] clicks_w1..w2 cộng lại bằng total_clicks,ĐẠT,2 cột tuần (kỳ vọng 2)
+[14d] last_active_day < 14,ĐẠT,
+[14d] imd_missing khớp imd_band thiếu,ĐẠT,
+[14d] no_activity_flag = 1 đúng khi total_clicks = 0,ĐẠT,
+[14d] cột split trong feature khớp file split,ĐẠT,
+[28d] khóa lượt đăng ký không trùng,ĐẠT,26.532 dòng
+[28d] không có cột final_result / date_unregistration,ĐẠT,
+[28d] clicks_w1..w4 cộng lại bằng total_clicks,ĐẠT,4 cột tuần (kỳ vọng 4)
+[28d] last_active_day < 28,ĐẠT,
+[28d] imd_missing khớp imd_band thiếu,ĐẠT,
+[28d] no_activity_flag = 1 đúng khi total_clicks = 0,ĐẠT,
+[28d] cột split trong feature khớp file split,ĐẠT,
+[56d] khóa lượt đăng ký không trùng,ĐẠT,26.532 dòng
+[56d] không có cột final_result / date_unregistration,ĐẠT,
+[56d] clicks_w1..w8 cộng lại bằng total_clicks,ĐẠT,8 cột tuần (kỳ vọng 8)
+[56d] last_active_day < 56,ĐẠT,
+[56d] imd_missing khớp imd_band thiếu,ĐẠT,
+[56d] no_activity_flag = 1 đúng khi total_clicks = 0,ĐẠT,
+[56d] cột split trong feature khớp file split,ĐẠT,
+Bảng 28 ngày độ nhạy ⊂ cohort gốc (feature_28d),ĐẠT,gốc 27.553 lượt; độ nhạy 26.532; bị bỏ 1.021 lượt (withdrawn: 1.021)
+"split_s.csv (độ nhạy) khác split.csv (gốc): chỉ dùng cho so sánh cửa sổ, không dùng cho kết quả chính",CẢNH BÁO,11.028 / 24.120 sinh viên chung khác tập
+Cohort lồng nhau: cohort 56d ⊂ 28d ⊂ 14d,ĐẠT,26.532 ⊃ 26.532 ⊃ 26.532
+Nhãn label_withdrawn giống nhau giữa ba cửa sổ trên lượt đăng ký chung,ĐẠT,26.532 lượt chung
+Feature nhân khẩu học giống nhau giữa cửa sổ 28 và 56,ĐẠT,
+Cùng id_student ở cùng tập (train/dev/test) giữa các cửa sổ,ĐẠT,24.120 sinh viên chung; khác tập: 14 so với 28 = 0 (0.0%); 28 so với 56 = 0 (0.0%)
+Checklist: các bảng cửa sổ dùng cùng cohort cố định (còn đăng ký ở ngày 56),ĐẠT,cohort 26.532 / 26.532 / 26.532

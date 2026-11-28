@@ -1,0 +1,2 @@
+﻿chart_id,title,source,n,window,label_used,png,csv
+w4_10,"Tín hiệu theo cửa sổ 14, 28, 56 ngày","feature_14d_s, feature_28d_s, feature_56d_s (train)",cohort cố định 18.552,"ngày 0–13, 0–27, 0–55",có (chỉ train),w4_10_window_signal.png,w4_10_window_signal.csv
