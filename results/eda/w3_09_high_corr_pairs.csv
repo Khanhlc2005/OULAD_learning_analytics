@@ -1,0 +1,9 @@
+﻿feature_a,feature_b,spearman
+last_active_day,days_since_last_active,-1.0
+n_assess_submitted,assess_submit_rate,0.959174289391737
+active_days,longest_gap_days,-0.9195614146908406
+n_distinct_sites,n_distinct_activity_types,0.8812591904824373
+total_clicks,active_days,0.8734867155575587
+total_clicks,n_distinct_sites,0.8295963211738753
+total_clicks,clicks_per_active_day,0.8158849317056184
+total_clicks,clicks_w3,0.8124800209143885

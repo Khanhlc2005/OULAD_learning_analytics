@@ -1,0 +1,12 @@
+﻿check,ket_qua,chi_tiet
+Số dòng feature_28d = cohort tính từ dữ liệu thô,ĐẠT,"(feature 27,553 | cohort thô 27,553)"
+Mỗi id_student chỉ thuộc một tập,ĐẠT,(0 sinh viên ở nhiều tập)
+Mọi dòng đều có split và đủ train/dev/test,ĐẠT,"({'train': 19264, 'test': 4158, 'dev': 4131})"
+Bảng feature không chứa final_result / date_unregistration,ĐẠT,
+label_withdrawn khớp final_result == Withdrawn,ĐẠT,(0 dòng lệch)
+total_clicks khớp tổng sum_click thô trong ngày 0–27 (mọi dòng),ĐẠT,"(0 / 27,553 dòng lệch)"
+active_days khớp số ngày khác nhau có click trong ngày 0–27,ĐẠT,"(0 / 27,553 dòng lệch)"
+imd_missing khớp số imd_band thiếu ('?'),ĐẠT,"(imd_band thiếu 1,029 | imd_missing = 1: 1,029)"
+date_registration_missing khớp số date_registration thiếu,ĐẠT,(7 | 7)
+no_activity_flag = 1 đúng khi total_clicks = 0,ĐẠT,
+clicks_w1+w2+w3+w4 = total_clicks,ĐẠT,(0 dòng lệch)

@@ -1,0 +1,8 @@
+﻿chart_id,title,source,n,window,label_used,png,csv
+w3_04,Click theo tuần theo nhóm kết quả,feature_28d (train),"19,264",ngày 0–27,có (chỉ train),w3_04_clicks_by_week.png,w3_04_clicks_by_week.csv
+w3_05,Số ngày hoạt động và click mỗi ngày theo nhóm kết quả,feature_28d (train),"19,264",ngày 0–27,có (chỉ train),w3_05_engagement.png,w3_05_engagement.csv
+w3_06,Bài nộp và điểm trong 28 ngày; hạn bài đầu tiên,"feature_28d (train), assessments","19,264 (ô hai); 15,789 có bài đến hạn (ô một; loại 3,475 lượt thuộc module/đợt chưa có bài đến hạn); 22 module/đợt (ô ba)",ngày 0–27,có (chỉ train),w3_06_assessments.png,w3_06_assessments.csv
+w3_07,Nhân khẩu học so với tỉ lệ rút lui,feature_28d (train),"19,264",thuộc tính tĩnh (không phụ thuộc cửa sổ),có (chỉ train),w3_07_demographics_vs_withdrawal.png,w3_07_demographics_vs_withdrawal.csv
+w3_08a,Độ lệch của feature số,feature_28d (train),"19,264",ngày 0–27,có (chỉ train),w3_08a_skewness.png,w3_08a_skewness.csv
+w3_08b,Trước và sau log1p,feature_28d (train),"19,264",ngày 0–27,có (chỉ train),w3_08b_log1p_before_after.png,w3_08b_log1p_before_after.csv
+w3_09,Ma trận tương quan giữa feature số,feature_28d (train),"19,264",ngày 0–27,có (chỉ train),w3_09_correlation.png,w3_09_correlation.csv

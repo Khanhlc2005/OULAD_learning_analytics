@@ -1,0 +1,5 @@
+﻿outcome,n,active_days_median,active_days_q1,active_days_q3,clicks_per_active_day_median,no_activity_rate
+Withdrawn,3582,8.0,4.0,13.0,17.0,0.06141820212171971
+Fail,4931,6.0,3.0,11.0,15.25,0.10058811600081119
+Pass,8678,11.0,6.0,17.0,19.906926,0.0163632173311823
+Distinction,2073,14.0,8.0,20.0,22.5,0.011577424023154847
